@@ -5,6 +5,19 @@ from lf_api.errors import *
 
 
 class Auth:
+  """The authentication object for fetching API access tokens.
+
+  Parameters:
+  client_id
+    the ID for the app client in use
+  client_secret
+    the client secret for the app client
+
+  Attributes:
+  access_token
+    the token to use to access the API; automatically refreshed upon expiration
+  """
+
   AUTH_HOST = 'https://auth.listenfirstmedia.com'
   EXP_BUFFER = timedelta(minutes=1)
 
@@ -14,7 +27,8 @@ class Auth:
     self._access_token = None
     self._expires_at = None
 
-  def fetch_access_token(self):
+  def _fetch_access_token(self):
+    # Fetch a token from the auth host's token endpoint
     auth_url = urljoin(Auth.AUTH_HOST, '/oauth2/token')
     auth_data = {
       "client_id": self.client_id,
@@ -41,7 +55,7 @@ class Auth:
   @property
   def access_token(self):
     if self._expires_at is None or self._expires_at <= datetime.utcnow() + Auth.EXP_BUFFER:
-      token_data = self.fetch_access_token()
+      token_data = self._fetch_access_token()
       self._expires_at = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
       self._access_token = token_data["access_token"]
     return self._access_token

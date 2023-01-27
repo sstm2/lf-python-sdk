@@ -5,6 +5,7 @@ POST = requests.post
 GET = requests.get
 
 def make_request(method, url, **request_args):
+  """Make HTTP requests."""
   response = method(url, **request_args)
   status = response.status_code
 
@@ -19,7 +20,7 @@ def make_request(method, url, **request_args):
   if status == 429:
     raise QuotaSurpassed(response)
   if status >= 500:
-    raise LfServerError(response)
+    raise ServerError(response)
   if not 200 <= status < 300:
     raise HttpError(response)
 
