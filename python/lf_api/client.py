@@ -27,93 +27,93 @@ class Client:
 
 
   # analytics methods
-  def fetch(self, **kwargs):
+  def fetch(self, json):
     """POST request to /analytics/fetch to perform a synchronous query."""
-    return self.secure_post('analytics/fetch', **kwargs)
+    return self.secure_post('analytics/fetch', json=json)
 
-  def create_fetch_job(self, **kwargs):
+  def create_fetch_job(self, json):
     """POST request to /analytics/fetch_job to create an asynchronous query."""
-    return self.secure_post('analytics/fetch_job', **kwargs)
+    return self.secure_post('analytics/fetch_job', json=json)
 
-  def show_fetch_job(self, job_id, **kwargs):
+  def show_fetch_job(self, job_id):
     """GET request to /analytics/fetch_job/{id} to view a summary of an existing
     asynchronous query.
     """
-    return self.secure_get(f'analytics/fetch_job/{job_id}', **kwargs)
+    return self.secure_get(f'analytics/fetch_job/{job_id}')
 
-  def latest_fetch_job(self, **kwargs):
+  def latest_fetch_job(self, params=None):
     """GET request to /analytics/fetch_job/latest to view a summary of the most
     recent asynchronous query.
     """
-    return self.secure_get('analytics/fetch_job/latest', **kwargs)
+    return self.secure_get('analytics/fetch_job/latest', params=params)
 
-  def list_fetch_jobs(self, **kwargs):
+  def list_fetch_jobs(self, params=None):
     """GET request to /analytics/fetch_job to view an abridged summary for all
     asynchronous queries.
     """
-    return self.secure_get('analytics/fetch_job', **kwargs)
+    return self.secure_get('analytics/fetch_job', params=params)
 
-  def create_schedule_config(self, **kwargs):
+  def create_schedule_config(self, json):
     """POST request to /analytics/schedule_config to create an schedule
     configuration.
     """
-    return self.secure_post('analytics/schedule_config', **kwargs)
+    return self.secure_post('analytics/schedule_config', json=json)
 
-  def show_schedule_config(self, schedule_config_id, **kwargs):
+  def show_schedule_config(self, schedule_config_id):
     """GET request to /analytics/schedule_config/{id} to view a summary of an
     existing schedule configuration.
     """
-    return self.secure_get(f'analytics/schedule_config/{schedule_config_id}', **kwargs)
+    return self.secure_get(f'analytics/schedule_config/{schedule_config_id}')
 
-  def list_schedule_configs(self, **kwargs):
+  def list_schedule_configs(self, params=None):
     """GET request to /analytics/schedule_config to view an abridged summary for
     all asynchronous queries.
     """
-    return self.secure_get('analytics/schedule_config', **kwargs)
+    return self.secure_get('analytics/schedule_config', params=params)
 
 
   # brand methods
-  def get_brand(self, brand_id, **kwargs):
+  def get_brand(self, brand_id, params=None):
     """GET request to /brand_views/{id} to view a summary of a brand view."""
-    return self.secure_get(f'brand_views/{brand_id}', **kwargs)
+    return self.secure_get(f'brand_views/{brand_id}', params=params)
 
-  def list_brands(self, **kwargs):
+  def list_brands(self, params=None):
     """GET request to /brand_views to view a summary for all brand views."""
-    return self.secure_get('brand_views', **kwargs)
+    return self.secure_get('brand_views', params=params)
 
 
   # brand set methods
-  def get_brand_set(self, brand_set_id, **kwargs):
+  def get_brand_set(self, brand_set_id):
     """GET request to /brand_view_sets/{id} to view a summary of a brand view
     set.
     """
-    return self.secure_get(f'brand_view_sets/{brand_set_id}', **kwargs)
+    return self.secure_get(f'brand_view_sets/{brand_set_id}')
 
-  def list_brand_sets(self, **kwargs):
+  def list_brand_sets(self, params=None):
     """GET request to /brand_view_sets to view a summary for all brand view set.
     """
-    return self.secure_get('brand_view_sets', **kwargs)
+    return self.secure_get('brand_view_sets', params=params)
 
 
   # dataset methods
-  def get_dataset(self, dataset_id, **kwargs):
+  def get_dataset(self, dataset_id):
     """GET request to /dictionary/datasets/{id} to view a summary of a dataset.
     """
-    return self.secure_get(f'dictionary/datasets/{dataset_id}', **kwargs)
+    return self.secure_get(f'dictionary/datasets/{dataset_id}')
 
-  def list_datasets(self, **kwargs):
+  def list_datasets(self):
     """GET request to /dictionary/datasets to view an abridged summary for all
     datasets.
     """
-    return self.secure_get('dictionary/datasets', **kwargs)
+    return self.secure_get('dictionary/datasets')
 
 
   # field values method
-  def get_field_values(self, field_id, **kwargs):
+  def get_field_values(self, params):
     """GET request to /dictionary/field_values to view a list of values for a
     given field.
     """
-    return self.secure_get(f'dictionary/field_values/{field_id}', **kwargs)
+    return self.secure_get(f'dictionary/field_values', params=params)
 
 
 
@@ -145,12 +145,12 @@ class Client:
       params=params
     )
 
-  def secure_post(self, endpoint, data=None, params=None):
+  def secure_post(self, endpoint, json=None, params=None):
     """Make a secure POST request to the ListenFirst API."""
     return self._make_authorized_request(
       http.POST,
       endpoint,
-      data=data,
+      json=json,
       params=params
     )
 
