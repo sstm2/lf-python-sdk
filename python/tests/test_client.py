@@ -234,7 +234,7 @@ class TestBadClient:
     self.client = Client.load('./tests/config/bad_profile.json')
 
   @pytest.mark.vcr
-  def test_reqest_fails(self):
+  def test_request_fails(self):
     with pytest.raises(Unauthorized) as e:
       res = self.client.fetch(json=params1)
 
