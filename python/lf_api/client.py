@@ -20,7 +20,7 @@ class Client:
   API_HOST = 'https://listenfirst.io'
   API_VERSION = 'v20200626/'
 
-  def __init__(self, api_key, auth, account_id):
+  def __init__(self, api_key, auth, account_id=None):
     self.api_key = api_key
     self.auth = auth
     self.account_id = account_id
@@ -67,7 +67,7 @@ class Client:
 
   def list_schedule_configs(self, params=None):
     """GET request to /analytics/schedule_config to view an abridged summary for
-    all asynchronous queries.
+    all schedule configurations.
     """
     return self.secure_get('analytics/schedule_config', params=params)
 
@@ -90,7 +90,8 @@ class Client:
     return self.secure_get(f'brand_view_sets/{brand_set_id}')
 
   def list_brand_sets(self, params=None):
-    """GET request to /brand_view_sets to view a summary for all brand view set.
+    """GET request to /brand_view_sets to view a summary for all brand view
+    sets.
     """
     return self.secure_get('brand_view_sets', params=params)
 
@@ -113,7 +114,7 @@ class Client:
     """GET request to /dictionary/field_values to view a list of values for a
     given field.
     """
-    return self.secure_get(f'dictionary/field_values', params=params)
+    return self.secure_get('dictionary/field_values', params=params)
 
 
 
@@ -127,7 +128,7 @@ class Client:
     # Build headers object for ListenFirst API
     headers = {
       "content-type": 'application/json',
-      "authorization": 'Bearer ' + self.auth.access_token,
+      "authorization": f'Bearer {self.auth.access_token}',
       "x-api-key": self.api_key,
       "lf-client-library": 'Python SDK',
       "lf-client-version": '1.0.0'
