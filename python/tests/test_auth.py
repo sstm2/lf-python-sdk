@@ -10,7 +10,11 @@ class TestAuth:
 
   @pytest.mark.vcr
   def test_access_token_works(self):
-    auth = Auth(self.profile["client_id"], self.profile["client_secret"])
+    auth = Auth(
+      self.profile["client_id"],
+      self.profile["client_secret"],
+      auth_host=self.profile.get("auth_host")
+    )
     token = auth.access_token
     assert isinstance(token, str)
     assert len(token) > 0

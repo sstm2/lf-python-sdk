@@ -15,15 +15,18 @@ class Client:
     the authentication object to be used for fetching access tokens
   account_id
     the acting account for requests; can be set to None for primary account use
+  api_host
+    the host to send requests to; defaults to DEFAULT_API_HOST
   """
 
-  API_HOST = 'https://listenfirst.io'
+  DEFAULT_API_HOST = 'https://listenfirst.io'
   API_VERSION = 'v20200626/'
 
-  def __init__(self, api_key, auth, account_id):
+  def __init__(self, api_key, auth, account_id=None, api_host=None):
     self.api_key = api_key
     self.auth = auth
     self.account_id = account_id
+    self.api_host = Client.DEFAULT_API_HOST if api_host is None else api_host
 
 
   # analytics methods
@@ -118,9 +121,9 @@ class Client:
 
 
   # request methods
-  def build_url(endpoint):
+  def _build_url(self, endpoint):
     # Build URL from an endpoint
-    return urljoin(Client.API_HOST, Client.API_VERSION + endpoint)
+    return urljoin(self.api_host, Client.API_VERSION + endpoint)
 
   @property
   def headers(self):
@@ -156,7 +159,7 @@ class Client:
 
   def _make_authorized_request(self, method, endpoint, **request_args):
     # Send authorized requests to the ListenFirst API
-    url = Client.build_url(endpoint)
+    url = self._build_url(endpoint)
     request_args["headers"] = self.headers
     return http.make_request(method, url, **request_args)
 
@@ -168,5 +171,14 @@ class Client:
       with open(f) as f: return cls.load(f)
 
     profile = json.load(f)
-    auth = Auth(profile["client_id"], profile["client_secret"])
-    return cls(profile["api_key"], auth, profile.get("account_id"))
+    auth = Auth(
+      profile["client_id"],
+      profile["client_secret"],
+      auth_host=profile.get("auth_host")
+    )
+    return cls(
+      profile["api_key"],
+      auth,
+      account_id=profile.get("account_id"),
+      api_host=profile.get("api_host")
+    )

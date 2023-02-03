@@ -12,24 +12,27 @@ class Auth:
     the ID for the app client in use
   client_secret
     the client secret for the app client
+  api_host
+    the host to send requests to; defaults to DEFAULT_AUTH_HOST
 
   Attributes:
   access_token
     the token to use to access the API; automatically refreshed upon expiration
   """
 
-  AUTH_HOST = 'https://auth.listenfirstmedia.com'
+  DEFAULT_AUTH_HOST = 'https://auth.listenfirstmedia.com'
   EXP_BUFFER = timedelta(minutes=1)
 
-  def __init__(self, client_id, client_secret):
+  def __init__(self, client_id, client_secret, auth_host=None):
     self.client_id = client_id
     self.client_secret = client_secret
+    self.auth_host = Auth.DEFAULT_AUTH_HOST if auth_host is None else auth_host
     self._access_token = None
     self._expires_at = None
 
   def _fetch_access_token(self):
     # Fetch a token from the auth host's token endpoint
-    auth_url = urljoin(Auth.AUTH_HOST, '/oauth2/token')
+    auth_url = urljoin(self.auth_host, '/oauth2/token')
     auth_data = {
       "client_id": self.client_id,
       "client_secret": self.client_secret,

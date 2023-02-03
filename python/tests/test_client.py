@@ -2,8 +2,8 @@ import pytest
 from lf_api.client import Client
 from lf_api.errors import *
 
-brand_id = 6650
-brand_set_id = 4626
+brand_id = 6650 # ListenFirst
+brand_set_id = 4626 # My Brands
 
 client_context = 'lf_api pytest client context'
 
