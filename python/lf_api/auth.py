@@ -1,7 +1,8 @@
-from urllib.parse import urljoin, urlencode
 from datetime import datetime, timedelta
+from urllib.parse import urljoin
+
 import lf_api.http_utils as http
-from lf_api.errors import *
+from lf_api.errors import AuthError, HttpError
 
 
 class Auth:
@@ -41,7 +42,8 @@ class Auth:
     }
 
     try:
-      response = http.make_request(http.POST, auth_url, data=auth_data, headers=headers)
+      response = http.make_request(http.POST, auth_url,
+                                   data=auth_data, headers=headers)
     except HttpError as err:
       raise AuthError(f'Failed to obtain access token: {err}')
 
@@ -54,8 +56,10 @@ class Auth:
 
   @property
   def access_token(self):
-    if self._expires_at is None or self._expires_at <= datetime.utcnow() + Auth.EXP_BUFFER:
+    if (self._expires_at is None or
+        self._expires_at <= datetime.utcnow() + Auth.EXP_BUFFER):
       token_data = self._fetch_access_token()
-      self._expires_at = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+      self._expires_at = (datetime.utcnow() +
+                          timedelta(seconds=token_data["expires_in"]))
       self._access_token = token_data["access_token"]
     return self._access_token

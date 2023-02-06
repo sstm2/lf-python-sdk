@@ -1,8 +1,8 @@
-from urllib.parse import urljoin, urlencode
-from lf_api.auth import Auth
-import lf_api.http_utils as http
-from lf_api.errors import *
 import json
+from urllib.parse import urljoin
+
+import lf_api.http_utils as http
+from lf_api.auth import Auth
 
 
 class Client:
@@ -36,8 +36,8 @@ class Client:
     return self.secure_post('analytics/fetch_job', json=json)
 
   def show_fetch_job(self, job_id):
-    """GET request to /analytics/fetch_job/{id} to view a summary of an existing
-    asynchronous query.
+    """GET request to /analytics/fetch_job/{id} to view a summary of an
+    existing asynchronous query.
     """
     return self.secure_get(f'analytics/fetch_job/{job_id}')
 
@@ -66,8 +66,8 @@ class Client:
     return self.secure_get(f'analytics/schedule_config/{schedule_config_id}')
 
   def list_schedule_configs(self, params=None):
-    """GET request to /analytics/schedule_config to view an abridged summary for
-    all schedule configurations.
+    """GET request to /analytics/schedule_config to view an abridged summary
+    for all schedule configurations.
     """
     return self.secure_get('analytics/schedule_config', params=params)
 
@@ -166,7 +166,8 @@ class Client:
   def load(cls, f):
     """Load a client from a JSON file."""
     if isinstance(f, str):
-      with open(f) as f: return cls.load(f)
+      with open(f) as f:
+        return cls.load(f)
 
     profile = json.load(f)
     auth = Auth(profile["client_id"], profile["client_secret"])

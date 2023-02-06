@@ -1,5 +1,7 @@
-from lf_api.errors import *
 import requests
+from lf_api.errors import (BadRequest, HttpError, QuotaSurpassed,
+                           RecordNotFound, RequestInvalid, ServerError,
+                           Unauthorized)
 
 POST = requests.post
 GET = requests.get
