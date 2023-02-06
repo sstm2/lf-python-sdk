@@ -70,7 +70,7 @@ class Client:
 
   def list_schedule_configs(self, params=None):
     """GET request to /analytics/schedule_config to view an abridged summary
-    for all asynchronous queries.
+    for all schedule configurations.
     """
     return self.secure_get('analytics/schedule_config', params=params)
 
@@ -131,7 +131,7 @@ class Client:
     # Build headers object for ListenFirst API
     headers = {
       "content-type": 'application/json',
-      "authorization": 'Bearer ' + self.auth.access_token,
+      "authorization": f'Bearer {self.auth.access_token}',
       "x-api-key": self.api_key,
       "lf-client-library": 'Python SDK',
       "lf-client-version": '1.0.0'
