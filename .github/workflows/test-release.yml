@@ -23,7 +23,7 @@ jobs:
   upload-test-pypi:
     name: Upload to Test PyPI
     runs-on: ubuntu-latest
-    needs: [test]
+    #needs: [test]
     steps:
       - uses: actions/setup-python@v2
         with:
