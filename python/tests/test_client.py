@@ -1,9 +1,9 @@
 import pytest
 from lf_api.client import Client
-from lf_api.errors import *
+from lf_api.errors import RecordNotFound, RequestInvalid, Unauthorized
 
-brand_id = 6650 # ListenFirst
-brand_set_id = 4626 # My Brands
+brand_id = 6650  # ListenFirst
+brand_set_id = 4626  # My Brands
 
 client_context = 'lf_api pytest client context'
 
@@ -63,8 +63,8 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_fetch_fails_for_bad_query(self):
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.fetch(json=params2)
+    with pytest.raises(RequestInvalid):
+      self.client.fetch(json=params2)
 
   @pytest.mark.vcr
   def test_create_and_show_fetch_job_works(self):
@@ -86,8 +86,8 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_create_fetch_job_fails_for_bad_query(self):
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.create_fetch_job(json={
+    with pytest.raises(RequestInvalid):
+      self.client.create_fetch_job(json={
         "fetch_params": params2,
         "client_context": client_context
       })
@@ -99,8 +99,8 @@ class TestClient:
 
     job_ids = [rec["id"] for rec in list_resp.json()["records"]]
     bad_id = min(job_ids) - 1
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.show_fetch_job(bad_id)
+    with pytest.raises(RequestInvalid):
+      self.client.show_fetch_job(bad_id)
 
   @pytest.mark.vcr
   def test_bare_latest_fetch_job_works(self):
@@ -109,7 +109,9 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_filtered_latest_fetch_job_works(self):
-    res = self.client.latest_fetch_job(params={"client_context": client_context})
+    res = self.client.latest_fetch_job(params={
+      "client_context": client_context
+    })
     assert res.status_code == 200
     assert res.json()["record"]["client_context"] == client_context
 
@@ -126,8 +128,8 @@ class TestClient:
     # to the 'bad' suffix), we can be assured that no available client context
     # is equal to bad_context.
     bad_context = ''.join(contexts) + 'bad'
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.latest_fetch_job(params={"client_context": bad_context})
+    with pytest.raises(RequestInvalid):
+      self.client.latest_fetch_job(params={"client_context": bad_context})
 
   @pytest.mark.vcr
   def test_create_and_show_schedule_config_works(self):
@@ -168,8 +170,8 @@ class TestClient:
 
     brand_ids = [rec["id"] for rec in list_resp.json()["records"]]
     bad_id = min(brand_ids) - 1
-    with pytest.raises(RecordNotFound) as e:
-      res = self.client.get_brand(bad_id)
+    with pytest.raises(RecordNotFound):
+      self.client.get_brand(bad_id)
 
 
   # brand set methods
@@ -190,8 +192,8 @@ class TestClient:
 
     brand_set_ids = [rec["id"] for rec in list_resp.json()["records"]]
     bad_id = min(brand_set_ids) - 1
-    with pytest.raises(RecordNotFound) as e:
-      res = self.client.get_brand_set(bad_id)
+    with pytest.raises(RecordNotFound):
+      self.client.get_brand_set(bad_id)
 
 
   # dataset methods
@@ -208,8 +210,8 @@ class TestClient:
   @pytest.mark.vcr
   def test_get_dataset_fails_for_bad_id(self):
     bad_id = 'dataset_brand_listenlast'
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.get_dataset(bad_id)
+    with pytest.raises(RequestInvalid):
+      self.client.get_dataset(bad_id)
 
 
   # field values method
@@ -220,13 +222,13 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_get_field_values_fails_for_bad_field(self):
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.get_field_values({"field": 'lfm.brand.name!'})
+    with pytest.raises(RequestInvalid):
+      self.client.get_field_values({"field": 'lfm.brand.name!'})
 
   @pytest.mark.vcr
   def test_get_field_values_fails_for_unlistable_field(self):
-    with pytest.raises(RequestInvalid) as e:
-      res = self.client.get_field_values({"field": 'lfm.brand_view.id'})
+    with pytest.raises(RequestInvalid):
+      self.client.get_field_values({"field": 'lfm.brand_view.id'})
 
 
 class TestBadClient:
@@ -235,6 +237,5 @@ class TestBadClient:
 
   @pytest.mark.vcr
   def test_request_fails(self):
-    with pytest.raises(Unauthorized) as e:
-      res = self.client.fetch(json=params1)
-
+    with pytest.raises(Unauthorized):
+      self.client.fetch(json=params1)

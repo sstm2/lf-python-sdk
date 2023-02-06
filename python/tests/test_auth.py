@@ -1,7 +1,9 @@
+import json
+
 import pytest
 from lf_api.auth import Auth
 from lf_api.errors import AuthError
-import json
+
 
 class TestAuth:
   def setup_method(self):
@@ -27,5 +29,5 @@ class TestAuth:
       # bad client secret
       Auth(self.profile["client_id"], self.profile["client_secret"][:-1])
     ]:
-      with pytest.raises(AuthError) as e:
-        token = auth.access_token
+      with pytest.raises(AuthError):
+        auth.access_token
