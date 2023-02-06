@@ -2,11 +2,15 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
+version_metadata = {}
+with open('lfapi/_version.py') as f:
+  exec(f.read(), version_metadata)
+
 long_description = (Path(__file__).parent / 'README.md').read_text()
 
 setup(
   name='lfapi',
-  version='0.0.0',
+  version=version_metadata["__version__"],
   author='Joseph Masom',
   author_email='joseph.masom@listenfirstmedia.com',
   url='https://github.com/ListenFirstMedia/lf-api-sdks/tree/main/python',
