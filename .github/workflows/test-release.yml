@@ -1,0 +1,32 @@
+name: test-release
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  test:
+    name: Run the SDK's test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pytest-recording
+      - name: Run
+        run: pytest --record-mode=once tests/
+
+  upload-test-pypi:
+    name: Upload to Test PyPI
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Build distribution
+        run: python3 -m build
+      - name: Upload
+        run: python3 -m twine upload -r testpypi dist/*
