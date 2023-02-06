@@ -1,8 +1,8 @@
 import json
 from urllib.parse import urljoin
 
-import lf_api.http_utils as http
-from lf_api.auth import Auth
+import lfapi.http_utils as http
+from lfapi.auth import Auth
 
 
 class Client:
