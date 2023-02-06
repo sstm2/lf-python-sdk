@@ -12,12 +12,12 @@ class HttpError(LfError):
   """
 
   def __init__(self, response):
-    req_method = response.request.method
+    method = response.request.method
     url = response.url
-    status_code = response.status_code
+    code = response.status_code
     reason = response.reason
     json = response.json()
-    msg = f'{req_method} request to {url} failed with {status_code} {reason}: {json}'
+    msg = f'{method} request to {url} failed with {code} {reason}: {json}'
     super().__init__(msg)
 
 class BadRequest(HttpError):
