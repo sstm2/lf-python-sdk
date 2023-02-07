@@ -24,12 +24,10 @@ setup(
     'requests'
   ],
   setup_requires=[
-    'pytest_runner',
-    'setuptools_scm'
+    'pytest_runner'
   ],
   tests_require=[
-    'pytest',
-    'pytest-recording'
+    'pytest'
   ],
   test_suite='tests',
   python_requires='>=3.8, <4',

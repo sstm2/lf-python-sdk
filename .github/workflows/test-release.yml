@@ -3,33 +3,38 @@ on:
   push:
     tags:
       - v*
+defaults:
+  run:
+    working-directory: python
 jobs:
   test:
-    name: Run the SDK's test suite
+    name: Running the Python test suite
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install pytest pytest-recording
+          python3 -m pip install pytest
       - name: Run
+        env:
+          API_KEY: ${{ secrets.DEV_API_KEY }}
+          CLIENT_ID: ${{ secrets.DEV_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.DEV_CLIENT_SECRET }}
+          API_HOST: https://api.lfmdev.in
+          AUTH_HOST: https://auth.lfmdev.in
         run: |
-          #pytest --record-mode=once tests/
+          python3 setup.py pytest
 
   upload-test-pypi:
-    name: Upload to Test PyPI
+    name: Uploading to Test PyPI
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
-    #needs: [test]
+    needs: [test]
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
@@ -40,4 +45,7 @@ jobs:
       - name: Build distribution
         run: python3 -m build
       - name: Upload
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
         run: python3 -m twine upload -r testpypi dist/*
