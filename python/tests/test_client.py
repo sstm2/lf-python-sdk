@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from lfapi.client import Client
 from lfapi.errors import RecordNotFound, RequestInvalid, Unauthorized
@@ -53,7 +55,16 @@ params2 = {
 }
 class TestClient:
   def setup_method(self):
-    self.client = Client.load('./tests/config/test_profile.json')
+    profile_keys = {"API_KEY", "CLIENT_ID", "CLIENT_SECRET"}
+    opt_profile_keys = {"API_HOST", "AUTH_HOST", "ACCOUNT_ID"}
+
+    if os.environ.keys() >= profile_keys:  # Read from environment vars
+      profile_keys |= opt_profile_keys & os.environ.keys()
+      profile = {key.lower(): os.environ[key] for key in profile_keys}
+      self.client = Client.from_dict(profile)
+
+    else:  # Read from profile file
+      self.client = Client.load('./tests/config/test_profile.json')
 
   # analytics methods
   @pytest.mark.vcr
@@ -233,7 +244,17 @@ class TestClient:
 
 class TestBadClient:
   def setup_method(self):
-    self.client = Client.load('./tests/config/bad_profile.json')
+    profile_keys = {"API_KEY", "CLIENT_ID", "CLIENT_SECRET"}
+    opt_profile_keys = {"API_HOST", "AUTH_HOST", "ACCOUNT_ID"}
+
+    if os.environ.keys() >= profile_keys:  # Read from environment vars
+      profile_keys |= opt_profile_keys & os.environ.keys()
+      profile = {key.lower(): os.environ[key] for key in profile_keys}
+      profile["api_key"] = 'x' * len(profile["api_key"])
+      self.client = Client.from_dict(profile)
+
+    else:  # Read from profile file
+      self.client = Client.load('./tests/config/bad_profile.json')
 
   @pytest.mark.vcr
   def test_request_fails(self):

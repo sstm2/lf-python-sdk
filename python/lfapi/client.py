@@ -164,15 +164,10 @@ class Client:
     request_args["headers"] = self.headers
     return http.make_request(method, url, **request_args)
 
-  # Initialize from JSON
+  # Initialize from config
   @classmethod
-  def load(cls, f):
-    """Load a client from a JSON file."""
-    if isinstance(f, str):
-      with open(f) as f:
-        return cls.load(f)
-
-    profile = json.load(f)
+  def from_dict(cls, profile):
+    """Load a client from a dictionary."""
     auth = Auth(
       profile["client_id"],
       profile["client_secret"],
@@ -184,3 +179,13 @@ class Client:
       account_id=profile.get("account_id"),
       api_host=profile.get("api_host")
     )
+
+  @classmethod
+  def load(cls, f):
+    """Load a client from a JSON file."""
+    if isinstance(f, str):
+      with open(f) as f:
+        return cls.load(f)
+
+    profile = json.load(f)
+    return cls.from_dict(profile)
