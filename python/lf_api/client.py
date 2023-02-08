@@ -131,7 +131,7 @@ class Client:
         params_list[0]["include_total"] = True
 
       # Generate pages
-      pages = [self.fetch(params) for params in params_list]
+      pages = [self.fetch(params).json() for params in params_list]
 
     else:  # Perform an asynchronous analytic query
       # Ignore paging arguments
@@ -156,13 +156,13 @@ class Client:
       # Create and poll the fetch job
       res = self.create_fetch_job(params, poll=True)
       body = res.json()
-      if body["record"]["status"] == 'failed':
+      if body["record"]["state"] == 'failed':
         msg = f'Fetch job {body["record"]["id"]} failed during execution'
         raise LfError(msg)
 
       # Read the page urls from the response
       page_urls = res.json()["record"]["page_urls"]
-      pages = [http.make_request(http.GET, url) for url in page_urls]
+      pages = [http.make_request(http.GET, url).json() for url in page_urls]
 
     return pages
 
@@ -188,7 +188,7 @@ class Client:
 
   def poll_fetch_job(self, job_id):
     """Make repeated POST requests to /analytics/fetch_job/{id} until the job
-    status is one of 'completed', 'failed'.
+    state is one of 'completed', 'failed'.
     """
     while True:
       try:
@@ -198,7 +198,7 @@ class Client:
         raise LfError(msg)
 
       body = res.json()
-      if body["record"]["status"] in ['completed', 'failed']:
+      if body["record"]["state"] in ['completed', 'failed']:
         return res
 
   def show_fetch_job(self, job_id):
