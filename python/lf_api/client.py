@@ -1,8 +1,10 @@
 import json
+import warnings
 from urllib.parse import urljoin
 
 import lf_api.http_utils as http
 from lf_api.auth import Auth
+from lf_api.errors import HttpError, LfError
 
 
 class Client:
@@ -29,14 +31,175 @@ class Client:
     self.api_host = Client.DEFAULT_API_HOST if api_host is None else api_host
 
 
+  # high-level querying method
+  def analytic_query(self, dataset_id, start_date, end_date,
+                     metrics=[],
+                     group_by=[],
+                     meta_dims=[],
+                     filters=[],
+                     sort=[],
+                     sync=True,
+                     per_page=None,
+                     page=None,
+                     num_pages=None,
+                     include_total=False,
+                     client_context=None,
+                     max_rows=None,
+                     emails=None):
+    """Construct an analytic query powered by the /analytics/* family of
+    endpoints.
+
+    Arguments:
+    dataset_id
+      the API dataset to query
+    start_date
+      the beginning of the queried time window
+    end_date
+      the end of the queried time window
+    metrics
+      the list of metrics to query (optional)
+    group_by
+      the list of dimensions to group by (optional)
+    meta_dims
+      the list of additional dimensions to query (optional)
+    filters
+      the list of filters to apply to the query
+    sort
+      the list of fields to sort by
+    sync
+      whether to use the synchronous or asynchronous endpoint
+    per_page
+      the number of records per page; ignored if sync is False
+    page
+      the page to synchronously query; ignored if sync is False
+    num_pages
+      the number of pages to synchronously query, starting from 1; ignored if
+      sync is False or if page is set
+    include_total
+      whether to request the total number of matching records; ignored if sync
+      is False
+    client_context
+      the client context to pass to the fetch job; ignored if sync is True
+    max_rows
+      the max number of rows to asynchronously fetch; ignored if sync is True
+    emails
+      a list of emails to send the fetch job results to upon completion
+      (optional); ignored if sync is True
+    """
+    # Build fetch request param hash
+    fetch_params = {
+      "dataset_id": dataset_id,
+      "start_date": start_date,
+      "end_date": end_date,
+      "metrics": metrics,
+      "group_by": group_by,
+      "meta_dimensions": meta_dims,
+      "filters": filters,
+      "sort": sort
+    }
+
+    if sync:  # Perform a synchronous analytic query
+      # Ignore fetch job arguments
+      async_params = {
+        "client_context": client_context,
+        "max_rows": max_rows,
+        "emails": emails
+      }
+      async_params = [p for p in async_params if async_params[p] is not None]
+      if len(async_params) > 0:
+        warnings.warn(f'Ignoring fetch job args: {", ".join(async_params)}')
+
+      # Build base request body
+      base_params = fetch_params
+      if per_page is not None:
+        base_params["per_page"] = per_page
+
+      # Handle page arguments
+      if page is not None:
+        if num_pages is not None:
+          warnings.warn('pages argument was passed; ignoring num_pages')
+        params_list = [{**base_params, "page": page}]
+      elif num_pages is not None:
+        params_list = [{**base_params, "page": page}
+                       for page in range(1, num_pages + 1)]
+      else:
+        params_list = [{**base_params}]
+
+      # Only pass include_total flag to first request to avoid repeating
+      # the expensive operation
+      if include_total is True:
+        params_list[0]["include_total"] = True
+
+      # Generate pages
+      pages = [self.fetch(params) for params in params_list]
+
+    else:  # Perform an asynchronous analytic query
+      # Ignore paging arguments
+      page_params = {
+        "per_page": per_page,
+        "page": page,
+        "num_pages": num_pages,
+      }
+      page_params = [p for p in page_params if page_params[p] is not None]
+      if len(page_params) > 0:
+        warnings.warn(f'Ignoring page args: {", ".join(page_params)}')
+
+      # Build request body
+      params = {"fetch_params": fetch_params}
+      if client_context is not None:
+        params["client_context"] = client_context
+      if max_rows is not None:
+        params["max_rows"] = max_rows
+      if emails is not None:
+        params["email_to"] = emails
+
+      # Create and poll the fetch job
+      res = self.create_fetch_job(params, poll=True)
+      body = res.json()
+      if body["record"]["status"] == 'failed':
+        msg = f'Fetch job {body["record"]["id"]} failed during execution'
+        raise LfError(msg)
+
+      # Read the page urls from the response
+      page_urls = res.json()["record"]["page_urls"]
+      pages = [http.make_request(http.GET, url) for url in page_urls]
+
+    return pages
+
+
   # analytics methods
   def fetch(self, json):
     """POST request to /analytics/fetch to perform a synchronous query."""
     return self.secure_post('analytics/fetch', json=json)
 
-  def create_fetch_job(self, json):
-    """POST request to /analytics/fetch_job to create an asynchronous query."""
-    return self.secure_post('analytics/fetch_job', json=json)
+  def create_fetch_job(self, json, poll=False):
+    """POST request to /analytics/fetch_job to create an asynchronous query.
+
+    Arguments:
+    poll
+      whether to poll the fetch job after creation
+    """
+    res = self.secure_post('analytics/fetch_job', json=json)
+    if poll:
+      body = res.json()
+      job_id = body["record"]["id"]
+      return self.poll_fetch_job(job_id)
+    return res
+
+  def poll_fetch_job(self, job_id):
+    """Make repeated POST requests to /analytics/fetch_job/{id} until the job
+    status is one of 'completed', 'failed'.
+    """
+    while True:
+      try:
+        res = self.show_fetch_job(job_id)
+      except HttpError as err:
+        msg = f'Encountered an exception during fetch job polling: {err}'
+        raise LfError(msg)
+
+      body = res.json()
+      if body["record"]["status"] in ['completed', 'failed']:
+        return res
 
   def show_fetch_job(self, job_id):
     """GET request to /analytics/fetch_job/{id} to view a summary of an
