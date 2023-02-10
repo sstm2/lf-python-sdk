@@ -1,6 +1,8 @@
 import pytest
 from lf_api.client import Client
 from lf_api.errors import RecordNotFound, RequestInvalid, Unauthorized
+from lf_api.models import (AnalyticResponse, Brand, BrandSet, Dataset,
+                           FetchJob, ListModel, Model, ScheduleConfig)
 
 brand_id = 6650  # ListenFirst
 brand_set_id = 4626  # My Brands
@@ -51,6 +53,18 @@ params2 = {
     }
   ]
 }
+
+def assert_is_model(obj, model):
+  assert issubclass(model, Model)
+  assert isinstance(obj, model)
+  return obj
+
+def assert_is_list_model(obj, item_class):
+  obj = assert_is_model(obj, ListModel)
+  assert obj._item_class is item_class
+  return obj
+
+
 class TestClient:
   def setup_method(self):
     self.client = Client.load('./tests/config/test_profile.json')
@@ -58,8 +72,7 @@ class TestClient:
   # analytics methods
   @pytest.mark.vcr
   def test_fetch_works(self):
-    res = self.client.fetch(json=params1)
-    assert res.status_code == 200
+    assert_is_model(self.client.fetch(json=params1), AnalyticResponse)
 
   @pytest.mark.vcr
   def test_fetch_fails_for_bad_query(self):
@@ -68,21 +81,19 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_create_and_show_fetch_job_works(self):
-    res = self.client.create_fetch_job(json={
-      "fetch_params": params1,
-      "client_context": client_context
-    })
-    assert res.status_code == 200
+    job = assert_is_model(
+      self.client.create_fetch_job(json={
+        "fetch_params": params1,
+        "client_context": client_context
+      }),
+      FetchJob
+    )
 
-    body = res.json()
-    job_id = body["record"]["id"]
-    res = self.client.show_fetch_job(job_id)
-    assert res.status_code == 200
+    assert_is_model(self.client.show_fetch_job(job.id), FetchJob)
 
   @pytest.mark.vcr
   def test_list_fetch_jobs_works(self):
-    res = self.client.list_fetch_jobs()
-    assert res.status_code == 200
+    assert_is_list_model(self.client.list_fetch_jobs(), FetchJob)
 
   @pytest.mark.vcr
   def test_create_fetch_job_fails_for_bad_query(self):
@@ -94,35 +105,33 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_show_fetch_job_fails_for_bad_id(self):
-    list_resp = self.client.list_fetch_jobs()
-    assert list_resp.status_code == 200
+    jobs = assert_is_list_model(self.client.list_fetch_jobs(),
+                                FetchJob)
 
-    job_ids = [rec["id"] for rec in list_resp.json()["records"]]
-    bad_id = min(job_ids) - 1
+    bad_id = min([job.id for job in jobs]) - 1
     with pytest.raises(RequestInvalid):
       self.client.show_fetch_job(bad_id)
 
   @pytest.mark.vcr
   def test_bare_latest_fetch_job_works(self):
-    res = self.client.latest_fetch_job()
-    assert res.status_code == 200
+    assert_is_model(self.client.latest_fetch_job(), FetchJob)
 
   @pytest.mark.vcr
   def test_filtered_latest_fetch_job_works(self):
-    res = self.client.latest_fetch_job(params={
-      "client_context": client_context
-    })
-    assert res.status_code == 200
-    assert res.json()["record"]["client_context"] == client_context
+    job = assert_is_model(
+      self.client.latest_fetch_job(params={
+        "client_context": client_context
+      }),
+      FetchJob
+    )
+    assert job.client_context == client_context
 
   @pytest.mark.vcr
   def test_filtered_latest_fetch_job_fails_for_bad_cc(self):
-    list_resp = self.client.list_fetch_jobs()
-    assert list_resp.status_code == 200
+    jobs = assert_is_list_model(self.client.list_fetch_jobs(), FetchJob)
 
     contexts = sorted(
-      {rec["client_context"] for rec in list_resp.json()["records"]
-        if rec["client_context"] is not None}
+      {job.client_context for job in jobs if job.client_context is not None}
     )
     # Because every client context is a strict substring of bad_context (thanks
     # to the 'bad' suffix), we can be assured that no available client context
@@ -133,43 +142,38 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_create_and_show_schedule_config_works(self):
-    res = self.client.create_schedule_config(json={
-      "fetch_params": params1,
-      "client_context": client_context,
-      "cron_expression": "0 0 * * *",
-      "num_times": 1
-    })
-    assert res.status_code == 200
+    config = assert_is_model(
+      self.client.create_schedule_config(json={
+        "fetch_params": params1,
+        "client_context": client_context,
+        "cron_expression": "0 0 * * *",
+        "num_times": 1
+      }),
+      ScheduleConfig
+    )
 
-    body = res.json()
-    job_id = body["record"]["id"]
-    res = self.client.show_schedule_config(job_id)
-    assert res.status_code == 200
+    assert_is_model(self.client.show_schedule_config(config.id),
+                    ScheduleConfig)
 
   @pytest.mark.vcr
   def test_list_schedule_configs_works(self):
-    res = self.client.list_schedule_configs()
-    assert res.status_code == 200
+    assert_is_list_model(self.client.list_schedule_configs(), ScheduleConfig)
 
 
   # brand methods
   @pytest.mark.vcr
   def test_get_brand_works(self):
-    res = self.client.get_brand(brand_id)
-    assert res.status_code == 200
+    assert_is_model(self.client.get_brand(brand_id), Brand)
 
   @pytest.mark.vcr
   def test_list_brands_works(self):
-    res = self.client.list_brands()
-    assert res.status_code == 200
+    assert_is_list_model(self.client.list_brands(), Brand)
 
   @pytest.mark.vcr
   def test_get_brand_fails_for_bad_id(self):
-    list_resp = self.client.list_brands()
-    assert list_resp.status_code == 200
+    brands = assert_is_list_model(self.client.list_brands(), Brand)
 
-    brand_ids = [rec["id"] for rec in list_resp.json()["records"]]
-    bad_id = min(brand_ids) - 1
+    bad_id = min([brand.id for brand in brands]) - 1
     with pytest.raises(RecordNotFound):
       self.client.get_brand(bad_id)
 
@@ -177,21 +181,17 @@ class TestClient:
   # brand set methods
   @pytest.mark.vcr
   def test_get_brand_set_works(self):
-    res = self.client.get_brand_set(brand_set_id)
-    assert res.status_code == 200
+    assert_is_model(self.client.get_brand_set(brand_set_id), BrandSet)
 
   @pytest.mark.vcr
   def test_list_brand_sets_works(self):
-    res = self.client.list_brand_sets()
-    assert res.status_code == 200
+    assert_is_list_model(self.client.list_brand_sets(), BrandSet)
 
   @pytest.mark.vcr
   def test_get_brand_set_fails_for_bad_id(self):
-    list_resp = self.client.list_brand_sets()
-    assert list_resp.status_code == 200
+    brand_sets = assert_is_list_model(self.client.list_brand_sets(), BrandSet)
 
-    brand_set_ids = [rec["id"] for rec in list_resp.json()["records"]]
-    bad_id = min(brand_set_ids) - 1
+    bad_id = min([brand_set.id for brand_set in brand_sets]) - 1
     with pytest.raises(RecordNotFound):
       self.client.get_brand_set(bad_id)
 
@@ -199,13 +199,12 @@ class TestClient:
   # dataset methods
   @pytest.mark.vcr
   def test_get_dataset_works(self):
-    res = self.client.get_dataset('dataset_brand_listenfirst')
-    assert res.status_code == 200
+    assert_is_model(self.client.get_dataset('dataset_brand_listenfirst'),
+                    Dataset)
 
   @pytest.mark.vcr
   def test_list_datasets_works(self):
-    res = self.client.list_datasets()
-    assert res.status_code == 200
+    assert_is_list_model(self.client.list_datasets(), Dataset)
 
   @pytest.mark.vcr
   def test_get_dataset_fails_for_bad_id(self):
