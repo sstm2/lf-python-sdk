@@ -153,6 +153,7 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_sync_analytic_query_works(self):
+    page = 1
     per_page = 10
 
     try:
@@ -165,6 +166,7 @@ class TestClient:
         meta_dims=params1["meta_dimensions"],
         filters=params1["filters"],
         sync=True,
+        page=page,
         per_page=per_page
       )
     except LfError:
