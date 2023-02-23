@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 import lfapi.http_utils as http
 import lfapi.models as models
 from lfapi.auth import Auth
-from lfapi.errors import HttpError, LfError
+from lfapi.errors import LfError
 
 
 def throttle(sleep_time=1):
@@ -190,13 +190,14 @@ class Client:
         params["email_to"] = emails
 
       # Create and poll the fetch job
-      fj = self.create_fetch_job(params, poll=True)
+      fj = self.create_fetch_job(params)
+      fj.poll()
       if fj.state == 'failed':
         msg = f'Fetch job {fj.id} failed during execution'
         raise LfError(msg)
 
       # Read the page urls from the response
-      pages = [http.make_request(http.GET, url).json() for url in fj.page_urls]
+      pages = fj.download_pages()
 
     return pages
 
@@ -210,49 +211,9 @@ class Client:
 
   @throttle()
   @as_model(models.FetchJob)
-  def create_fetch_job(self, json, poll=False):
-    """POST request to /analytics/fetch_job to create an asynchronous query.
-
-    Arguments:
-    poll
-      whether to poll the fetch job after creation
-    """
-    res = self.secure_post('analytics/fetch_job', json=json)
-    if poll:
-      body = res.json()
-      job_id = body["record"]["id"]
-      return self.poll_fetch_job(job_id)
-    return res
-
-  def poll_fetch_job(self, job_id):
-    """Make repeated POST requests to /analytics/fetch_job/{id} until the job
-    state is one of 'completed', 'failed'.
-    """
-    sleep_time = 1  # Custom throttle for progressive backoff
-    max_tries = 3  # Attemt request no more than three times
-    start_time = time.time()
-    max_wait_time = 60 * 90  # Wait at most 90 minutes
-
-    while time.time() - start_time < max_wait_time:
-      # Retrieve fetch job summary
-      for t in range(max_tries):
-        try:
-          fj = self.show_fetch_job(job_id)
-        except HttpError as err:
-          if t < max_tries - 1:
-            continue
-          msg = f'Encountered an exception during fetch job polling: {err}'
-          raise LfError(msg)
-
-      # Return if job in terminal state
-      if fj.state in ['completed', 'failed']:
-        return fj
-
-      # Sleep and increase backoff
-      time.sleep(sleep_time)
-      sleep_time *= 1.1
-
-    raise LfError("Exceeded max wait time; ending fetch job poll")
+  def create_fetch_job(self, json):
+    """POST request to /analytics/fetch_job to create an asynchronous query."""
+    return self.secure_post('analytics/fetch_job', json=json)
 
   @throttle()
   @as_model(models.FetchJob)

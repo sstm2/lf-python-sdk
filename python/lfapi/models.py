@@ -2,13 +2,28 @@ import csv
 import importlib.util
 import io
 import json
+import time
 
-from lfapi.errors import LfError
+import lfapi.http_utils as http
+from lfapi.errors import HttpError, LfError
 
 if importlib.util.find_spec('pandas') is None:
   pd = None
 else:
   import pandas as pd
+
+
+class NoClientError(LfError):
+  pass
+
+def requires_client(mth):
+  def _mth(self, *args, **kwargs):
+    if self.client is None:
+      raise NoClientError()
+
+    return mth(self, *args, **kwargs)
+
+  return _mth
 
 
 class Model:
@@ -67,6 +82,12 @@ class Model:
     # Defer to json.dump(), write to file
     return json.dump(self.as_dict(), fp, **json_kwargs)
 
+  def merge(self, other):
+    """Merge attributes of another model into self."""
+    assert type(self) is type(other)
+    for attr in other.as_dict():
+      setattr(self, attr, getattr(other, attr))
+
 
   @property
   def record(self):
@@ -77,6 +98,48 @@ class FetchJob(Model):
   """Wrapper for ListenFirst API Fetch Jobs."""
   _required = ["id", "state", "created_at", "updated_at", "client_context",
                "schedule_config_id"]
+
+  @requires_client
+  def update(self):
+    """Update fetch job via API."""
+    self.merge(self.client.show_fetch_job(self.id))
+
+  @requires_client
+  def poll(self):
+    """Update fetch job until state is one of 'completed', 'failed'. """
+    sleep_time = 1  # Custom throttle for progressive backoff
+    max_tries = 3  # Attemt request no more than three times
+    start_time = time.time()
+    max_wait_time = 60 * 90  # Wait at most 90 minutes
+
+    while time.time() - start_time < max_wait_time:
+      # Retrieve fetch job summary
+      for t in range(max_tries):
+        try:
+          self.update()
+        except HttpError as err:
+          if t < max_tries - 1:
+            continue
+          msg = f'Encountered an exception during fetch job polling: {err}'
+          raise LfError(msg)
+
+      # Return if job in terminal state
+      if self.state in ['completed', 'failed']:
+        return
+
+      # Sleep and increase backoff
+      time.sleep(sleep_time)
+      sleep_time *= 1.1
+
+    raise LfError("Exceeded max wait time; ending fetch job poll")
+
+  def download_pages(self, label_mode="id"):
+    if self.state != 'completed' or not hasattr(self, "page_urls"):
+      raise LfError('Attempted to download pages from uncompleted fetch job.')
+
+    return [AnalyticResponse(http.make_request(http.GET, url).json(),
+                             label_mode=label_mode) for url in self.page_urls]
+
 
 class ScheduleConfig(Model):
   """Wrapper for ListenFirst API Schedule Configs."""
