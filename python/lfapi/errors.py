@@ -1,5 +1,5 @@
 class LfError(Exception):
-  """Base exception for lf_api."""
+  """Base exception for lfapi."""
   pass
 
 

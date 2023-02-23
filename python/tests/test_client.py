@@ -1,11 +1,11 @@
 import pytest
-from lf_api.client import Client
-from lf_api.errors import LfError, RecordNotFound, RequestInvalid, Unauthorized
+from lfapi.client import Client
+from lfapi.errors import LfError, RecordNotFound, RequestInvalid, Unauthorized
 
 brand_id = 6650  # ListenFirst
 brand_set_id = 4626  # My Brands
 
-client_context = 'lf_api pytest client context'
+client_context = 'lfapi pytest client context'
 
 params1 = {
   "dataset_id": 'dataset_brand_listenfirst',

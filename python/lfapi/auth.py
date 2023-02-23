@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
-import lf_api.http_utils as http
-from lf_api.errors import AuthError, HttpError
+import lfapi.http_utils as http
+from lfapi.errors import AuthError, HttpError
 
 
 class Auth:

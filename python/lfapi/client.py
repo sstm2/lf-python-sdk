@@ -2,9 +2,9 @@ import json
 import warnings
 from urllib.parse import urljoin
 
-import lf_api.http_utils as http
-from lf_api.auth import Auth
-from lf_api.errors import HttpError, LfError
+import lfapi.http_utils as http
+from lfapi.auth import Auth
+from lfapi.errors import HttpError, LfError
 
 
 class Client:

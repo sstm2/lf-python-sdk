@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from lf_api.auth import Auth
-from lf_api.errors import AuthError
+from lfapi.auth import Auth
+from lfapi.errors import AuthError
 
 
 class TestAuth:
