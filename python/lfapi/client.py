@@ -5,6 +5,7 @@ from math import inf
 from urllib.parse import urljoin
 
 import lfapi.http_utils as http
+import lfapi.models as models
 from lfapi.auth import Auth
 from lfapi.errors import HttpError, LfError
 
@@ -25,6 +26,22 @@ def throttle(sleep_time=1):
     return _mth
 
   return throttle_decorator
+
+def as_model(model, listed=False):
+  if not issubclass(model, models.Model):
+    raise LfError('@as_model decorator takes a subclass of lfapi.Model')
+
+  def as_model_decorator(mth):
+    def _mth(self, *args, **kwargs):
+      res = mth(self, *args, **kwargs)
+      body = res.json()
+      if listed:
+        return models.ListModel(body, model, client=self)
+      return model(body, client=self)
+
+    return _mth
+
+  return as_model_decorator
 
 class Client:
   """ListenFirst API v20200626 interface.
@@ -150,7 +167,7 @@ class Client:
         params_list[0]["include_total"] = True
 
       # Generate pages
-      pages = [self.fetch(params).json() for params in params_list]
+      pages = [self.fetch(params) for params in params_list]
 
     else:  # Perform an asynchronous analytic query
       # Ignore paging arguments
@@ -173,26 +190,26 @@ class Client:
         params["email_to"] = emails
 
       # Create and poll the fetch job
-      res = self.create_fetch_job(params, poll=True)
-      body = res.json()
-      if body["record"]["state"] == 'failed':
-        msg = f'Fetch job {body["record"]["id"]} failed during execution'
+      fj = self.create_fetch_job(params, poll=True)
+      if fj.state == 'failed':
+        msg = f'Fetch job {fj.id} failed during execution'
         raise LfError(msg)
 
       # Read the page urls from the response
-      page_urls = res.json()["record"]["page_urls"]
-      pages = [http.make_request(http.GET, url).json() for url in page_urls]
+      pages = [http.make_request(http.GET, url).json() for url in fj.page_urls]
 
     return pages
 
 
   # analytics methods
   @throttle()
+  @as_model(models.AnalyticResponse)
   def fetch(self, json):
     """POST request to /analytics/fetch to perform a synchronous query."""
     return self.secure_post('analytics/fetch', json=json)
 
   @throttle()
+  @as_model(models.FetchJob)
   def create_fetch_job(self, json, poll=False):
     """POST request to /analytics/fetch_job to create an asynchronous query.
 
@@ -220,7 +237,7 @@ class Client:
       # Retrieve fetch job summary
       for t in range(max_tries):
         try:
-          res = self.show_fetch_job(job_id)
+          fj = self.show_fetch_job(job_id)
         except HttpError as err:
           if t < max_tries - 1:
             continue
@@ -228,9 +245,8 @@ class Client:
           raise LfError(msg)
 
       # Return if job in terminal state
-      body = res.json()
-      if body["record"]["state"] in ['completed', 'failed']:
-        return res
+      if fj.state in ['completed', 'failed']:
+        return fj
 
       # Sleep and increase backoff
       time.sleep(sleep_time)
@@ -239,6 +255,7 @@ class Client:
     raise LfError("Exceeded max wait time; ending fetch job poll")
 
   @throttle()
+  @as_model(models.FetchJob)
   def show_fetch_job(self, job_id):
     """GET request to /analytics/fetch_job/{id} to view a summary of an
     existing asynchronous query.
@@ -246,6 +263,7 @@ class Client:
     return self.secure_get(f'analytics/fetch_job/{job_id}')
 
   @throttle()
+  @as_model(models.FetchJob)
   def latest_fetch_job(self, params=None):
     """GET request to /analytics/fetch_job/latest to view a summary of the most
     recent asynchronous query.
@@ -253,6 +271,7 @@ class Client:
     return self.secure_get('analytics/fetch_job/latest', params=params)
 
   @throttle()
+  @as_model(models.FetchJob, listed=True)
   def list_fetch_jobs(self, params=None):
     """GET request to /analytics/fetch_job to view an abridged summary for all
     asynchronous queries.
@@ -260,6 +279,7 @@ class Client:
     return self.secure_get('analytics/fetch_job', params=params)
 
   @throttle()
+  @as_model(models.ScheduleConfig)
   def create_schedule_config(self, json):
     """POST request to /analytics/schedule_config to create an schedule
     configuration.
@@ -267,6 +287,7 @@ class Client:
     return self.secure_post('analytics/schedule_config', json=json)
 
   @throttle()
+  @as_model(models.ScheduleConfig)
   def show_schedule_config(self, schedule_config_id):
     """GET request to /analytics/schedule_config/{id} to view a summary of an
     existing schedule configuration.
@@ -274,6 +295,7 @@ class Client:
     return self.secure_get(f'analytics/schedule_config/{schedule_config_id}')
 
   @throttle()
+  @as_model(models.ScheduleConfig, listed=True)
   def list_schedule_configs(self, params=None):
     """GET request to /analytics/schedule_config to view an abridged summary
     for all schedule configurations.
@@ -283,11 +305,13 @@ class Client:
 
   # brand methods
   @throttle()
+  @as_model(models.Brand)
   def get_brand(self, brand_id, params=None):
     """GET request to /brand_views/{id} to view a summary of a brand view."""
     return self.secure_get(f'brand_views/{brand_id}', params=params)
 
   @throttle()
+  @as_model(models.Brand, listed=True)
   def list_brands(self, params=None):
     """GET request to /brand_views to view a summary for all brand views."""
     return self.secure_get('brand_views', params=params)
@@ -295,6 +319,7 @@ class Client:
 
   # brand set methods
   @throttle()
+  @as_model(models.BrandSet)
   def get_brand_set(self, brand_set_id):
     """GET request to /brand_view_sets/{id} to view a summary of a brand view
     set.
@@ -302,6 +327,7 @@ class Client:
     return self.secure_get(f'brand_view_sets/{brand_set_id}')
 
   @throttle()
+  @as_model(models.BrandSet, listed=True)
   def list_brand_sets(self, params=None):
     """GET request to /brand_view_sets to view a summary for all brand view
     sets.
@@ -311,12 +337,14 @@ class Client:
 
   # dataset methods
   @throttle()
+  @as_model(models.Dataset)
   def get_dataset(self, dataset_id):
     """GET request to /dictionary/datasets/{id} to view a summary of a dataset.
     """
     return self.secure_get(f'dictionary/datasets/{dataset_id}')
 
   @throttle()
+  @as_model(models.Dataset, listed=True)
   def list_datasets(self):
     """GET request to /dictionary/datasets to view an abridged summary for all
     datasets.
