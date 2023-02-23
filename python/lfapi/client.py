@@ -1,11 +1,30 @@
 import json
+import time
 import warnings
+from math import inf
 from urllib.parse import urljoin
 
 import lfapi.http_utils as http
 from lfapi.auth import Auth
 from lfapi.errors import HttpError, LfError
 
+
+def throttle(sleep_time=1):
+  def throttle_decorator(mth):
+    last_call_time = -inf
+
+    def _mth(*args, **kwargs):
+      nonlocal last_call_time
+      time_since_last_call = time.time() - last_call_time
+      if 0 <= time_since_last_call < sleep_time:
+        time.sleep(sleep_time - time_since_last_call)
+      last_call_time = time.time()
+
+      return mth(*args, **kwargs)
+
+    return _mth
+
+  return throttle_decorator
 
 class Client:
   """ListenFirst API v20200626 interface.
@@ -168,10 +187,12 @@ class Client:
 
 
   # analytics methods
+  @throttle()
   def fetch(self, json):
     """POST request to /analytics/fetch to perform a synchronous query."""
     return self.secure_post('analytics/fetch', json=json)
 
+  @throttle()
   def create_fetch_job(self, json, poll=False):
     """POST request to /analytics/fetch_job to create an asynchronous query.
 
@@ -190,47 +211,69 @@ class Client:
     """Make repeated POST requests to /analytics/fetch_job/{id} until the job
     state is one of 'completed', 'failed'.
     """
-    while True:
-      try:
-        res = self.show_fetch_job(job_id)
-      except HttpError as err:
-        msg = f'Encountered an exception during fetch job polling: {err}'
-        raise LfError(msg)
+    sleep_time = 1  # Custom throttle for progressive backoff
+    max_tries = 3  # Attemt request no more than three times
+    start_time = time.time()
+    max_wait_time = 60 * 90  # Wait at most 90 minutes
 
+    while time.time() - start_time < max_wait_time:
+      # Retrieve fetch job summary
+      for t in range(max_tries):
+        try:
+          res = self.show_fetch_job(job_id)
+        except HttpError as err:
+          if t < max_tries - 1:
+            continue
+          msg = f'Encountered an exception during fetch job polling: {err}'
+          raise LfError(msg)
+
+      # Return if job in terminal state
       body = res.json()
       if body["record"]["state"] in ['completed', 'failed']:
         return res
 
+      # Sleep and increase backoff
+      time.sleep(sleep_time)
+      sleep_time *= 1.1
+
+    raise LfError("Exceeded max wait time; ending fetch job poll")
+
+  @throttle()
   def show_fetch_job(self, job_id):
     """GET request to /analytics/fetch_job/{id} to view a summary of an
     existing asynchronous query.
     """
     return self.secure_get(f'analytics/fetch_job/{job_id}')
 
+  @throttle()
   def latest_fetch_job(self, params=None):
     """GET request to /analytics/fetch_job/latest to view a summary of the most
     recent asynchronous query.
     """
     return self.secure_get('analytics/fetch_job/latest', params=params)
 
+  @throttle()
   def list_fetch_jobs(self, params=None):
     """GET request to /analytics/fetch_job to view an abridged summary for all
     asynchronous queries.
     """
     return self.secure_get('analytics/fetch_job', params=params)
 
+  @throttle()
   def create_schedule_config(self, json):
     """POST request to /analytics/schedule_config to create an schedule
     configuration.
     """
     return self.secure_post('analytics/schedule_config', json=json)
 
+  @throttle()
   def show_schedule_config(self, schedule_config_id):
     """GET request to /analytics/schedule_config/{id} to view a summary of an
     existing schedule configuration.
     """
     return self.secure_get(f'analytics/schedule_config/{schedule_config_id}')
 
+  @throttle()
   def list_schedule_configs(self, params=None):
     """GET request to /analytics/schedule_config to view an abridged summary
     for all schedule configurations.
@@ -239,22 +282,26 @@ class Client:
 
 
   # brand methods
+  @throttle()
   def get_brand(self, brand_id, params=None):
     """GET request to /brand_views/{id} to view a summary of a brand view."""
     return self.secure_get(f'brand_views/{brand_id}', params=params)
 
+  @throttle()
   def list_brands(self, params=None):
     """GET request to /brand_views to view a summary for all brand views."""
     return self.secure_get('brand_views', params=params)
 
 
   # brand set methods
+  @throttle()
   def get_brand_set(self, brand_set_id):
     """GET request to /brand_view_sets/{id} to view a summary of a brand view
     set.
     """
     return self.secure_get(f'brand_view_sets/{brand_set_id}')
 
+  @throttle()
   def list_brand_sets(self, params=None):
     """GET request to /brand_view_sets to view a summary for all brand view
     sets.
@@ -263,11 +310,13 @@ class Client:
 
 
   # dataset methods
+  @throttle()
   def get_dataset(self, dataset_id):
     """GET request to /dictionary/datasets/{id} to view a summary of a dataset.
     """
     return self.secure_get(f'dictionary/datasets/{dataset_id}')
 
+  @throttle()
   def list_datasets(self):
     """GET request to /dictionary/datasets to view an abridged summary for all
     datasets.
@@ -276,6 +325,7 @@ class Client:
 
 
   # field values method
+  @throttle()
   def get_field_values(self, params):
     """GET request to /dictionary/field_values to view a list of values for a
     given field.
@@ -304,6 +354,7 @@ class Client:
 
     return headers
 
+  @throttle()
   def secure_get(self, endpoint, params=None):
     """Make a secure GET request to the ListenFirst API."""
     return self._make_authorized_request(
@@ -312,6 +363,7 @@ class Client:
       params=params
     )
 
+  @throttle()
   def secure_post(self, endpoint, json=None, params=None):
     """Make a secure POST request to the ListenFirst API."""
     return self._make_authorized_request(
@@ -321,6 +373,7 @@ class Client:
       params=params
     )
 
+  @throttle()
   def _make_authorized_request(self, method, endpoint, **request_args):
     # Send authorized requests to the ListenFirst API
     url = self._build_url(endpoint)
