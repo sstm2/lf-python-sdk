@@ -109,11 +109,12 @@ class FetchJob(Model):
     self.merge(self.client.poll_fetch_job(self.id))
 
   def download_pages(self, label_mode="id"):
+    """Lazily download pages from page_urls attribute."""
     if self.state != 'completed' or not hasattr(self, "page_urls"):
       raise LfError('Attempted to download pages from uncompleted fetch job.')
 
-    return [AnalyticResponse(http.make_request(http.GET, url).json(),
-                             label_mode=label_mode) for url in self.page_urls]
+    return (AnalyticResponse(http.make_request(http.GET, url).json(),
+                             label_mode=label_mode) for url in self.page_urls)
 
 
 class ScheduleConfig(Model):
