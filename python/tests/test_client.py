@@ -4,7 +4,7 @@ import pytest
 from lfapi.client import Client
 from lfapi.errors import RecordNotFound, RequestInvalid, Unauthorized
 
-brand_id = 6650  # ListenFirst
+brand_id = os.environ.get("BRAND_ID")
 brand_set_id = 4626  # My Brands
 
 client_context = 'lfapi pytest client context'
@@ -53,6 +53,16 @@ params2 = {
     }
   ]
 }
+
+def requires_brand_id(mth):
+  def _mth(*args, **kwargs):
+    if brand_id is None:
+      print(f'No brand_id specified; skipping {mth.__name__}')
+      return None
+    return mth(*args, **kwargs)
+  return _mth
+
+
 class TestClient:
   def setup_method(self):
     profile_keys = {"API_KEY", "CLIENT_ID", "CLIENT_SECRET"}
@@ -68,16 +78,19 @@ class TestClient:
 
   # analytics methods
   @pytest.mark.vcr
+  @requires_brand_id
   def test_fetch_works(self):
     res = self.client.fetch(json=params1)
     assert res.status_code == 200
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_fetch_fails_for_bad_query(self):
     with pytest.raises(RequestInvalid):
       self.client.fetch(json=params2)
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_create_and_show_fetch_job_works(self):
     res = self.client.create_fetch_job(json={
       "fetch_params": params1,
@@ -96,6 +109,7 @@ class TestClient:
     assert res.status_code == 200
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_create_fetch_job_fails_for_bad_query(self):
     with pytest.raises(RequestInvalid):
       self.client.create_fetch_job(json={
@@ -143,6 +157,7 @@ class TestClient:
       self.client.latest_fetch_job(params={"client_context": bad_context})
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_create_and_show_schedule_config_works(self):
     res = self.client.create_schedule_config(json={
       "fetch_params": params1,
@@ -165,6 +180,7 @@ class TestClient:
 
   # brand methods
   @pytest.mark.vcr
+  @requires_brand_id
   def test_get_brand_works(self):
     res = self.client.get_brand(brand_id)
     assert res.status_code == 200
@@ -257,6 +273,7 @@ class TestBadClient:
       self.client = Client.load('./tests/config/bad_profile.json')
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_request_fails(self):
     with pytest.raises(Unauthorized):
       self.client.fetch(json=params1)
