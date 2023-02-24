@@ -1,6 +1,8 @@
+import types
+
 import pytest
 from lfapi.client import Client
-from lfapi.errors import LfError, RecordNotFound, RequestInvalid, Unauthorized
+from lfapi.errors import RecordNotFound, RequestInvalid, Unauthorized
 from lfapi.models import (AnalyticResponse, Brand, BrandSet, Dataset, FetchJob,
                           ListModel, Model, ScheduleConfig)
 
@@ -161,53 +163,31 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_sync_analytic_query_works(self):
-    page = 1
+    max_pages = 1
     per_page = 10
 
-    try:
-      pages = self.client.analytic_query(
-        params1["dataset_id"],
-        params1["start_date"],
-        params1["end_date"],
-        metrics=params1["metrics"],
-        group_by=params1["group_by"],
-        meta_dims=params1["meta_dimensions"],
-        filters=params1["filters"],
-        sync=True,
-        page=page,
-        per_page=per_page
-      )
-    except LfError:
-      assert False
+    pages = self.client.sync_analytic_query(params1, per_page=per_page,
+                                            max_pages=max_pages)
 
-    assert isinstance(pages, list)
-    assert len(pages) == 1
-    assert_is_model(pages[0], AnalyticResponse)
-    assert len(pages[0]) <= per_page
+    assert isinstance(pages, types.GeneratorType)
+    page = next(pages)
+    assert_is_model(page, AnalyticResponse)
+    assert len(page) <= per_page
+    with pytest.raises(StopIteration):  # Check number of pages
+      next(pages)
 
   @pytest.mark.vcr
   def test_async_analytic_query_works(self):
     max_rows = 10
 
-    try:
-      pages = self.client.analytic_query(
-        params1["dataset_id"],
-        params1["start_date"],
-        params1["end_date"],
-        metrics=params1["metrics"],
-        group_by=params1["group_by"],
-        meta_dims=params1["meta_dimensions"],
-        filters=params1["filters"],
-        sync=False,
-        max_rows=max_rows
-      )
-    except LfError:
-      assert False
+    pages = self.client.async_analytic_query(params1, max_rows=max_rows)
 
-    assert isinstance(pages, list)
+    assert isinstance(pages, types.GeneratorType)
+    num_rows = 0
     for page in pages:
       assert_is_model(page, AnalyticResponse)
-    assert sum([len(page) for page in pages]) <= max_rows
+      num_rows += len(page)
+    assert num_rows <= max_rows
 
 
   # brand methods

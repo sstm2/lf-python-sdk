@@ -1,6 +1,5 @@
 import json
 import time
-import warnings
 from math import inf
 from urllib.parse import urljoin
 
@@ -69,155 +68,87 @@ class Client:
     self.api_host = Client.DEFAULT_API_HOST if api_host is None else api_host
 
 
+  # high-level analytic query utilities
   @as_model(models.FetchJob)
   def poll_fetch_job(self, job_id):
     """Pull fetch job until state is one of 'completed', 'failed'."""
 
     return http.retry(
       self.secure_get,
-      max_tries=3,
+      max_tries=inf,
       max_wait_time=60 * 90,
       delay=1,
       backoff=1.1,
-      retry_condition=lambda r: r.json()["record"]["state"] in [
+      retry_condition=lambda r: r.json()["record"]["state"] not in [
         'completed',
         'failed'
       ]
     )(f'analytics/fetch_job/{job_id}')
 
-  # high-level querying method
-  def analytic_query(self, dataset_id, start_date, end_date,
-                     metrics=[],
-                     group_by=[],
-                     meta_dims=[],
-                     filters=[],
-                     sort=[],
-                     sync=True,
-                     per_page=None,
-                     page=None,
-                     num_pages=None,
-                     include_total=False,
-                     client_context=None,
-                     max_rows=None,
-                     emails=None):
-    """Construct an analytic query powered by the /analytics/* family of
-    endpoints.
+  def sync_analytic_query(self, fetch_params, per_page=None, max_pages=inf):
+    """Construct an synchronous analytic query powered by the /analytics/fetch
+    endpoint.
 
     Arguments:
-    dataset_id
-      the API dataset to query
-    start_date
-      the beginning of the queried time window
-    end_date
-      the end of the queried time window
-    metrics
-      the list of metrics to query (optional)
-    group_by
-      the list of dimensions to group by (optional)
-    meta_dims
-      the list of additional dimensions to query (optional)
-    filters
-      the list of filters to apply to the query
-    sort
-      the list of fields to sort by
-    sync
-      whether to use the synchronous or asynchronous endpoint
+    fetch_params
+      the query parameters; must include dataset_id, start_date, end_date, and
+      filters entries, also accepts metrics, group_by, meta_dimensions, and
+      sort
     per_page
-      the number of records per page; ignored if sync is False
-    page
-      the page to synchronously query; ignored if sync is False
-    num_pages
-      the number of pages to synchronously query, starting from 1; ignored if
-      sync is False or if page is set
-    include_total
-      whether to request the total number of matching records; ignored if sync
-      is False
+      the number of rows to include in each page (optional)
+    max_pages
+      the max number of pages to synchronously fetch (optional)
+    """
+    # Build request body
+    params = {**fetch_params}
+    if per_page is not None:
+      params["per_page"] = per_page
+
+    # Yield each page
+    page = 1
+    while page <= max_pages:
+      ar = self.fetch({**params, "page": page})
+      yield ar
+      if ar.is_last:
+        return
+      page += 1
+
+  def async_analytic_query(self, fetch_params, client_context=None,
+                           max_rows=None, emails=None):
+    """Construct an async analytic query powered by the /analytics/fetch_job
+    endpoint.
+
+    Arguments:
+    fetch_params
+      the query parameters; must include dataset_id, start_date, end_date, and
+      filters entries, also accepts metrics, group_by, meta_dimensions, and
+      sort
     client_context
-      the client context to pass to the fetch job; ignored if sync is True
+      the client context to pass to the fetch job
     max_rows
-      the max number of rows to asynchronously fetch; ignored if sync is True
+      the max number of rows to asynchronously fetch
     emails
       a list of emails to send the fetch job results to upon completion
-      (optional); ignored if sync is True
+      (optional)
     """
-    # Build fetch request param hash
-    fetch_params = {
-      "dataset_id": dataset_id,
-      "start_date": start_date,
-      "end_date": end_date,
-      "metrics": metrics,
-      "group_by": group_by,
-      "meta_dimensions": meta_dims,
-      "filters": filters,
-      "sort": sort
-    }
+    # Build request body
+    params = {"fetch_params": {**fetch_params}}
+    if client_context is not None:
+      params["client_context"] = client_context
+    if max_rows is not None:
+      params["max_rows"] = max_rows
+    if emails is not None:
+      params["email_to"] = emails
 
-    if sync:  # Perform a synchronous analytic query
-      # Ignore fetch job arguments
-      async_params = {
-        "client_context": client_context,
-        "max_rows": max_rows,
-        "emails": emails
-      }
-      async_params = [p for p in async_params if async_params[p] is not None]
-      if len(async_params) > 0:
-        warnings.warn(f'Ignoring fetch job args: {", ".join(async_params)}')
+    # Create and poll the fetch job
+    fj = self.create_fetch_job(params)
+    fj = self.poll_fetch_job(fj.id)
+    if fj.state == 'failed':
+      msg = f'Fetch job {fj.id} failed during execution.'
+      raise LfError(msg)
 
-      # Build base request body
-      base_params = fetch_params
-      if per_page is not None:
-        base_params["per_page"] = per_page
-
-      # Handle page arguments
-      if page is not None:
-        if num_pages is not None:
-          warnings.warn('pages argument was passed; ignoring num_pages')
-        params_list = [{**base_params, "page": page}]
-      elif num_pages is not None:
-        params_list = [{**base_params, "page": page}
-                       for page in range(1, num_pages + 1)]
-      else:
-        params_list = [{**base_params}]
-
-      # Only pass include_total flag to first request to avoid repeating
-      # the expensive operation
-      if include_total is True:
-        params_list[0]["include_total"] = True
-
-      # Generate pages
-      pages = [self.fetch(params) for params in params_list]
-
-    else:  # Perform an asynchronous analytic query
-      # Ignore paging arguments
-      page_params = {
-        "per_page": per_page,
-        "page": page,
-        "num_pages": num_pages,
-      }
-      page_params = [p for p in page_params if page_params[p] is not None]
-      if len(page_params) > 0:
-        warnings.warn(f'Ignoring page args: {", ".join(page_params)}')
-
-      # Build request body
-      params = {"fetch_params": fetch_params}
-      if client_context is not None:
-        params["client_context"] = client_context
-      if max_rows is not None:
-        params["max_rows"] = max_rows
-      if emails is not None:
-        params["email_to"] = emails
-
-      # Create and poll the fetch job
-      fj = self.create_fetch_job(params)
-      fj = self.poll_fetch_job(fj.id)
-      if fj.state == 'failed':
-        msg = f'Fetch job {fj.id} failed during execution'
-        raise LfError(msg)
-
-      # Read the page urls from the response
-      pages = fj.download_pages()
-
-    return pages
+    # Read the page urls from the response
+    return fj.download_pages()
 
 
   # analytics methods

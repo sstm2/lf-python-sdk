@@ -55,6 +55,8 @@ def retry(f, max_tries=3, max_wait_time=7200, delay=1, backoff=1.1,
   assert backoff >= 1
 
   def _f(*args, **kwargs):
+    nonlocal max_tries, max_wait_time, delay, backoff, retry_condition
+
     t = 0
     start_time = time.time()
     while time.time() - start_time < max_wait_time:
