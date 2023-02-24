@@ -11,6 +11,7 @@ from lfapi.errors import LfError
 
 
 def throttle(sleep_time=1):
+  # Add throttling between method calls
   def throttle_decorator(mth):
     last_call_time = -inf
 
@@ -28,6 +29,7 @@ def throttle(sleep_time=1):
   return throttle_decorator
 
 def as_model(model, listed=False):
+  # Convert HTTP responses to lfapi.Model subclass
   if not issubclass(model, models.Model):
     raise LfError('@as_model decorator takes a subclass of lfapi.Model')
 
@@ -66,6 +68,22 @@ class Client:
     self.account_id = account_id
     self.api_host = Client.DEFAULT_API_HOST if api_host is None else api_host
 
+
+  @as_model(models.FetchJob)
+  def poll_fetch_job(self, job_id):
+    """Pull fetch job until state is one of 'completed', 'failed'."""
+
+    return http.retry(
+      self.secure_get,
+      max_tries=3,
+      max_wait_time=60 * 90,
+      delay=1,
+      backoff=1.1,
+      retry_condition=lambda r: r.json()["record"]["state"] in [
+        'completed',
+        'failed'
+      ]
+    )(f'analytics/fetch_job/{job_id}')
 
   # high-level querying method
   def analytic_query(self, dataset_id, start_date, end_date,
@@ -191,7 +209,7 @@ class Client:
 
       # Create and poll the fetch job
       fj = self.create_fetch_job(params)
-      fj.poll()
+      fj = self.poll_fetch_job(fj.id)
       if fj.state == 'failed':
         msg = f'Fetch job {fj.id} failed during execution'
         raise LfError(msg)

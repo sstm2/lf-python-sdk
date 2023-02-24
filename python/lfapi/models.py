@@ -2,10 +2,9 @@ import csv
 import importlib.util
 import io
 import json
-import time
 
 import lfapi.http_utils as http
-from lfapi.errors import HttpError, LfError
+from lfapi.errors import LfError
 
 if importlib.util.find_spec('pandas') is None:
   pd = None
@@ -106,32 +105,8 @@ class FetchJob(Model):
 
   @requires_client
   def poll(self):
-    """Update fetch job until state is one of 'completed', 'failed'. """
-    sleep_time = 1  # Custom throttle for progressive backoff
-    max_tries = 3  # Attemt request no more than three times
-    start_time = time.time()
-    max_wait_time = 60 * 90  # Wait at most 90 minutes
-
-    while time.time() - start_time < max_wait_time:
-      # Retrieve fetch job summary
-      for t in range(max_tries):
-        try:
-          self.update()
-        except HttpError as err:
-          if t < max_tries - 1:
-            continue
-          msg = f'Encountered an exception during fetch job polling: {err}'
-          raise LfError(msg)
-
-      # Return if job in terminal state
-      if self.state in ['completed', 'failed']:
-        return
-
-      # Sleep and increase backoff
-      time.sleep(sleep_time)
-      sleep_time *= 1.1
-
-    raise LfError("Exceeded max wait time; ending fetch job poll")
+    """Update fetch job until state is one of 'completed', 'failed'."""
+    self.merge(self.client.poll_fetch_job(self.id))
 
   def download_pages(self, label_mode="id"):
     if self.state != 'completed' or not hasattr(self, "page_urls"):
