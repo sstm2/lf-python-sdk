@@ -68,17 +68,15 @@ def retry(f, max_tries=3, max_wait_time=7200, delay=1, backoff=1.1,
       try:
         # Attempt execution and check result against retry_condition
         result = f(*args, **kwargs)
-        if retry_condition is not None and retry_condition(result):
-          continue
-        return result
+        if retry_condition is None or not retry_condition(result):
+          return result
       except HttpError as err:
         # Allow max_tries HttpErrors
-        if t < max_tries - 1:
-          continue
-        raise err
-      finally:
-        # Iterate
-        t += 1
+        if t >= max_tries - 1:
+          raise err
+
+      # Iterate
+      t += 1
 
     raise LfError("Exceeded max wait time; exiting.")
 
