@@ -1,5 +1,4 @@
 import json
-import time
 from math import inf
 from urllib.parse import urljoin
 
@@ -8,24 +7,6 @@ import lfapi.models as models
 from lfapi.auth import Auth
 from lfapi.errors import LfError
 
-
-def throttle(sleep_time=1):
-  # Add throttling between method calls
-  def throttle_decorator(mth):
-    last_call_time = -inf
-
-    def _mth(*args, **kwargs):
-      nonlocal last_call_time
-      time_since_last_call = time.time() - last_call_time
-      if 0 <= time_since_last_call < sleep_time:
-        time.sleep(sleep_time - time_since_last_call)
-      last_call_time = time.time()
-
-      return mth(*args, **kwargs)
-
-    return _mth
-
-  return throttle_decorator
 
 def as_model(model, listed=False):
   # Convert HTTP responses to lfapi.Model subclass
@@ -152,19 +133,16 @@ class Client:
 
 
   # analytics methods
-  @throttle()
   @as_model(models.AnalyticResponse)
   def fetch(self, json):
     """POST request to /analytics/fetch to perform a synchronous query."""
     return self.secure_post('analytics/fetch', json=json)
 
-  @throttle()
   @as_model(models.FetchJob)
   def create_fetch_job(self, json):
     """POST request to /analytics/fetch_job to create an asynchronous query."""
     return self.secure_post('analytics/fetch_job', json=json)
 
-  @throttle()
   @as_model(models.FetchJob)
   def show_fetch_job(self, job_id):
     """GET request to /analytics/fetch_job/{id} to view a summary of an
@@ -172,7 +150,6 @@ class Client:
     """
     return self.secure_get(f'analytics/fetch_job/{job_id}')
 
-  @throttle()
   @as_model(models.FetchJob)
   def latest_fetch_job(self, params=None):
     """GET request to /analytics/fetch_job/latest to view a summary of the most
@@ -180,7 +157,6 @@ class Client:
     """
     return self.secure_get('analytics/fetch_job/latest', params=params)
 
-  @throttle()
   @as_model(models.FetchJob, listed=True)
   def list_fetch_jobs(self, params=None):
     """GET request to /analytics/fetch_job to view an abridged summary for all
@@ -188,7 +164,6 @@ class Client:
     """
     return self.secure_get('analytics/fetch_job', params=params)
 
-  @throttle()
   @as_model(models.ScheduleConfig)
   def create_schedule_config(self, json):
     """POST request to /analytics/schedule_config to create an schedule
@@ -196,7 +171,6 @@ class Client:
     """
     return self.secure_post('analytics/schedule_config', json=json)
 
-  @throttle()
   @as_model(models.ScheduleConfig)
   def show_schedule_config(self, schedule_config_id):
     """GET request to /analytics/schedule_config/{id} to view a summary of an
@@ -204,7 +178,6 @@ class Client:
     """
     return self.secure_get(f'analytics/schedule_config/{schedule_config_id}')
 
-  @throttle()
   @as_model(models.ScheduleConfig, listed=True)
   def list_schedule_configs(self, params=None):
     """GET request to /analytics/schedule_config to view an abridged summary
@@ -214,13 +187,11 @@ class Client:
 
 
   # brand methods
-  @throttle()
   @as_model(models.Brand)
   def get_brand(self, brand_id, params=None):
     """GET request to /brand_views/{id} to view a summary of a brand view."""
     return self.secure_get(f'brand_views/{brand_id}', params=params)
 
-  @throttle()
   @as_model(models.Brand, listed=True)
   def list_brands(self, params=None):
     """GET request to /brand_views to view a summary for all brand views."""
@@ -228,7 +199,6 @@ class Client:
 
 
   # brand set methods
-  @throttle()
   @as_model(models.BrandSet)
   def get_brand_set(self, brand_set_id):
     """GET request to /brand_view_sets/{id} to view a summary of a brand view
@@ -236,7 +206,6 @@ class Client:
     """
     return self.secure_get(f'brand_view_sets/{brand_set_id}')
 
-  @throttle()
   @as_model(models.BrandSet, listed=True)
   def list_brand_sets(self, params=None):
     """GET request to /brand_view_sets to view a summary for all brand view
@@ -246,14 +215,12 @@ class Client:
 
 
   # dataset methods
-  @throttle()
   @as_model(models.Dataset)
   def get_dataset(self, dataset_id):
     """GET request to /dictionary/datasets/{id} to view a summary of a dataset.
     """
     return self.secure_get(f'dictionary/datasets/{dataset_id}')
 
-  @throttle()
   @as_model(models.Dataset, listed=True)
   def list_datasets(self):
     """GET request to /dictionary/datasets to view an abridged summary for all
@@ -263,7 +230,6 @@ class Client:
 
 
   # field values method
-  @throttle()
   def get_field_values(self, params):
     """GET request to /dictionary/field_values to view a list of values for a
     given field.
@@ -292,7 +258,6 @@ class Client:
 
     return headers
 
-  @throttle()
   def secure_get(self, endpoint, params=None):
     """Make a secure GET request to the ListenFirst API."""
     return self._make_authorized_request(
@@ -301,7 +266,6 @@ class Client:
       params=params
     )
 
-  @throttle()
   def secure_post(self, endpoint, json=None, params=None):
     """Make a secure POST request to the ListenFirst API."""
     return self._make_authorized_request(
@@ -311,7 +275,6 @@ class Client:
       params=params
     )
 
-  @throttle()
   def _make_authorized_request(self, method, endpoint, **request_args):
     # Send authorized requests to the ListenFirst API
     url = self._build_url(endpoint)
