@@ -1,15 +1,15 @@
 import json
 from urllib.parse import urljoin
 
-import lf_api.http_utils as http
-import lf_api.models as models
-from lf_api.auth import Auth
-from lf_api.errors import LfError
+import lfapi.http_utils as http
+import lfapi.models as models
+from lfapi.auth import Auth
+from lfapi.errors import LfError
 
 
 def as_model(model, listed=False):
   if not issubclass(model, models.Model):
-    raise LfError('@as_model decorator takes a subclass of lf_api.Model')
+    raise LfError('@as_model decorator takes a subclass of lfapi.Model')
 
   def as_model_decorator(mth):
     def _mth(self, *args, **kwargs):
@@ -196,15 +196,10 @@ class Client:
     request_args["headers"] = self.headers
     return http.make_request(method, url, **request_args)
 
-  # Initialize from JSON
+  # Initialize from config
   @classmethod
-  def load(cls, f):
-    """Load a client from a JSON file."""
-    if isinstance(f, str):
-      with open(f) as f:
-        return cls.load(f)
-
-    profile = json.load(f)
+  def from_dict(cls, profile):
+    """Load a client from a dictionary."""
     auth = Auth(
       profile["client_id"],
       profile["client_secret"],
@@ -216,3 +211,13 @@ class Client:
       account_id=profile.get("account_id"),
       api_host=profile.get("api_host")
     )
+
+  @classmethod
+  def load(cls, f):
+    """Load a client from a JSON file."""
+    if isinstance(f, str):
+      with open(f) as f:
+        return cls.load(f)
+
+    profile = json.load(f)
+    return cls.from_dict(profile)

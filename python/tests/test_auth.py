@@ -1,14 +1,23 @@
 import json
+import os
 
 import pytest
-from lf_api.auth import Auth
-from lf_api.errors import AuthError
+from lfapi.auth import Auth
+from lfapi.errors import AuthError
 
 
 class TestAuth:
   def setup_method(self):
-    with open('./tests/config/test_profile.json') as f:
-      self.profile = json.load(f)
+    profile_keys = {"API_KEY", "CLIENT_ID", "CLIENT_SECRET"}
+    opt_profile_keys = {"API_HOST", "AUTH_HOST", "ACCOUNT_ID"}
+
+    if os.environ.keys() >= profile_keys:  # Read from environment vars
+      profile_keys |= opt_profile_keys & os.environ.keys()
+      self.profile = {key.lower(): os.environ[key] for key in profile_keys}
+
+    else:  # Read from profile file
+      with open('./tests/config/test_profile.json') as f:
+        self.profile = json.load(f)
 
   @pytest.mark.vcr
   def test_access_token_works(self):

@@ -3,7 +3,7 @@ import importlib.util
 import io
 import json
 
-from lf_api.errors import LfError
+from lfapi.errors import LfError
 
 if importlib.util.find_spec('pandas') is None:
   pd = None
