@@ -5,6 +5,7 @@ from lfapi.client import Client
 from lfapi.errors import RecordNotFound, RequestInvalid, Unauthorized
 
 brand_id = os.environ.get("BRAND_ID")
+brand_id = int(brand_id) if brand_id is not None else brand_id
 brand_set_id = 4626  # My Brands
 
 client_context = 'lfapi pytest client context'
