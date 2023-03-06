@@ -112,7 +112,6 @@ class Client:
       max_tries=inf,
       max_wait_time=60 * 90,
       delay=1,
-      backoff=1.1,
       retry_condition=lambda r: r.json()["record"]["state"] not in [
         'completed',
         'failed'
@@ -145,7 +144,7 @@ class Client:
     while page <= max_pages:
       ar = self.fetch({**params, "page": page})
       yield ar
-      if ar.is_last:
+      if ar.is_last_page:
         return
       page += 1
 

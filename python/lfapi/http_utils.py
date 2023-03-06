@@ -1,4 +1,5 @@
 import time
+from math import log10
 
 import requests
 from lfapi.errors import (BadRequest, HttpError, LfError, QuotaSurpassed,
@@ -30,8 +31,7 @@ def make_request(method, url, **request_args):
 
   return response
 
-def retry(f, max_tries=3, max_wait_time=7200, delay=1, backoff=1.1,
-          retry_condition=None):
+def retry(f, max_tries=3, max_wait_time=7200, delay=1, retry_condition=None):
   """Retry function execution.
 
   Arguments:
@@ -43,8 +43,6 @@ def retry(f, max_tries=3, max_wait_time=7200, delay=1, backoff=1.1,
     the maximum total wait time across all attempts; default 2 hours
   delay
     the initial time to wait between attempts; default 1 second
-  backoff
-    the multiplier to apply to delay after each attempt; default 1.1
   retry_condition
     if specified, determines whether the result from f is sufficient to cease
     execution attempts
@@ -52,18 +50,17 @@ def retry(f, max_tries=3, max_wait_time=7200, delay=1, backoff=1.1,
   assert max_tries >= 1
   assert max_wait_time > 0
   assert delay >= 0
-  assert backoff >= 1
 
   def _f(*args, **kwargs):
-    nonlocal max_tries, max_wait_time, delay, backoff, retry_condition
+    nonlocal max_tries, max_wait_time, delay, retry_condition
 
     tries = 0
     start_time = time.time()
     while time.time() - start_time < max_wait_time and tries < max_tries - 1:
       if tries > 0:
-        # Sleep, and apply backoff between iterations
+        # Apply logarithmic backoff and sleep between iterations
+        delay += log10(tries)
         time.sleep(delay)
-        delay *= backoff
 
       try:
         # Attempt execution and check result against retry_condition
