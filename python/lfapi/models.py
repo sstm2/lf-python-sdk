@@ -3,12 +3,26 @@ import importlib.util
 import io
 import json
 
+import lfapi.http_utils as http
 from lfapi.errors import LfError
 
 if importlib.util.find_spec('pandas') is None:
   pd = None
 else:
   import pandas as pd
+
+
+class NoClientError(LfError):
+  pass
+
+def requires_client(mth):
+  def _mth(self, *args, **kwargs):
+    if self.client is None:
+      raise NoClientError()
+
+    return mth(self, *args, **kwargs)
+
+  return _mth
 
 
 class Model:
@@ -67,6 +81,12 @@ class Model:
     # Defer to json.dump(), write to file
     return json.dump(self.as_dict(), fp, **json_kwargs)
 
+  def merge(self, other):
+    """Merge attributes of another model in-place."""
+    assert type(self) is type(other)
+    for attr in other.as_dict():
+      setattr(self, attr, getattr(other, attr))
+
 
   @property
   def record(self):
@@ -77,6 +97,25 @@ class FetchJob(Model):
   """Wrapper for ListenFirst API Fetch Jobs."""
   _required = ["id", "state", "created_at", "updated_at", "client_context",
                "schedule_config_id"]
+
+  @requires_client
+  def update(self):
+    """Update fetch job via API."""
+    self.merge(self.client.show_fetch_job(self.id))
+
+  @requires_client
+  def poll(self):
+    """Update fetch job until state is one of 'completed', 'failed'."""
+    self.merge(self.client.poll_fetch_job(self.id))
+
+  def download_pages(self, label_mode="id"):
+    """Return generator of fetch job's pages as AnalyticResponse objects."""
+    if self.state != 'completed' or not hasattr(self, "page_urls"):
+      raise LfError('Attempted to download pages from uncompleted fetch job.')
+
+    return (AnalyticResponse(http.make_request(http.GET, url).json(),
+                             label_mode=label_mode) for url in self.page_urls)
+
 
 class ScheduleConfig(Model):
   """Wrapper for ListenFirst API Schedule Configs."""
@@ -113,7 +152,7 @@ class ListModel(Model):
     self._item_class = item_class
     self.records = [self._item_class(rec) for rec in self.records]
 
-  def is_last(self):
+  def is_last_page(self):
     """Determine whether there are any remaining pages."""
     return not getattr(self, "has_more_pages")
 

@@ -1,3 +1,4 @@
+import types
 import os
 
 import pytest
@@ -183,6 +184,34 @@ class TestClient:
   @pytest.mark.vcr
   def test_list_schedule_configs_works(self):
     assert_is_list_model(self.client.list_schedule_configs(), ScheduleConfig)
+
+  @pytest.mark.vcr
+  def test_sync_analytic_query_works(self):
+    max_pages = 1
+    per_page = 10
+
+    pages = self.client.sync_analytic_query(params1, per_page=per_page,
+                                            max_pages=max_pages)
+
+    assert isinstance(pages, types.GeneratorType)
+    page = next(pages)
+    assert_is_model(page, AnalyticResponse)
+    assert len(page) <= per_page
+    with pytest.raises(StopIteration):  # Check number of pages
+      next(pages)
+
+  @pytest.mark.vcr
+  def test_async_analytic_query_works(self):
+    max_rows = 10
+
+    pages = self.client.async_analytic_query(params1, max_rows=max_rows)
+
+    assert isinstance(pages, types.GeneratorType)
+    num_rows = 0
+    for page in pages:
+      assert_is_model(page, AnalyticResponse)
+      num_rows += len(page)
+    assert num_rows <= max_rows
 
 
   # brand methods

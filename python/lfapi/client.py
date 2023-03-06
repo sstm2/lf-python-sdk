@@ -1,4 +1,5 @@
 import json
+from math import inf
 from urllib.parse import urljoin
 
 import lfapi.http_utils as http
@@ -8,6 +9,7 @@ from lfapi.errors import LfError
 
 
 def as_model(model, listed=False):
+  # Convert HTTP responses to lfapi.Model subclass
   if not issubclass(model, models.Model):
     raise LfError('@as_model decorator takes a subclass of lfapi.Model')
 
@@ -99,6 +101,92 @@ class Client:
     for all schedule configurations.
     """
     return self.secure_get('analytics/schedule_config', params=params)
+
+  # high-level analytic query convenience utilities
+  @as_model(models.FetchJob)
+  def poll_fetch_job(self, job_id):
+    """Pull fetch job summary until state is one of 'completed', 'failed'."""
+
+    return http.retry(
+      self.secure_get,
+      max_tries=inf,
+      max_wait_time=60 * 90,
+      delay=1,
+      retry_condition=lambda r: r.json()["record"]["state"] not in [
+        'completed',
+        'failed'
+      ]
+    )(f'analytics/fetch_job/{job_id}')
+
+  def sync_analytic_query(self, fetch_params, per_page=None, max_pages=inf):
+    """Run multiple pages of synchronous analytic queries.
+
+    Arguments:
+    fetch_params
+      the query parameters; must include dataset_id, start_date, end_date, and
+      filters entries, also accepts metrics, group_by, meta_dimensions, and
+      sort
+    per_page
+      the number of rows to include in each page (optional)
+    max_pages
+      the max number of pages to synchronously fetch (optional)
+
+    Returns:
+      generator of requested pages as models.AnalyticResponse objects
+    """
+    # Build request body
+    params = {**fetch_params}
+    if per_page is not None:
+      params["per_page"] = per_page
+
+    # Yield each page
+    page = 1
+    while page <= max_pages:
+      ar = self.fetch({**params, "page": page})
+      yield ar
+      if ar.is_last_page:
+        return
+      page += 1
+
+  def async_analytic_query(self, fetch_params, client_context=None,
+                           max_rows=None, emails=None):
+    """Construct and poll an async analytic query, and download page URLs upon
+    completion.
+
+    Arguments:
+    fetch_params
+      the query parameters; must include dataset_id, start_date, end_date, and
+      filters entries, also accepts metrics, group_by, meta_dimensions, and
+      sort
+    client_context
+      the client context to pass to the fetch job
+    max_rows
+      the max number of rows to asynchronously fetch
+    emails
+      a list of emails to send the fetch job results to upon completion
+      (optional)
+
+    Returns:
+      generator of downloaded pages as models.AnalyticResponse objects
+    """
+    # Build request body
+    params = {"fetch_params": {**fetch_params}}
+    if client_context is not None:
+      params["client_context"] = client_context
+    if max_rows is not None:
+      params["max_rows"] = max_rows
+    if emails is not None:
+      params["email_to"] = emails
+
+    # Create and poll the fetch job
+    fj = self.create_fetch_job(params)
+    fj = self.poll_fetch_job(fj.id)
+    if fj.state == 'failed':
+      msg = f'Fetch job {fj.id} failed during execution.'
+      raise LfError(msg)
+
+    # Read the page urls from the response
+    return fj.download_pages()
 
 
   # brand methods
