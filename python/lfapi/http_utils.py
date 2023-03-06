@@ -56,7 +56,7 @@ def retry(f, max_tries=3, max_wait_time=7200, delay=1, retry_condition=None):
 
     tries = 0
     start_time = time.time()
-    while time.time() - start_time < max_wait_time and tries < max_tries - 1:
+    while time.time() - start_time < max_wait_time and tries < max_tries:
       if tries > 0:
         # Apply logarithmic backoff and sleep between iterations
         delay += log10(tries)
