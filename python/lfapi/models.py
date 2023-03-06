@@ -82,7 +82,7 @@ class Model:
     return json.dump(self.as_dict(), fp, **json_kwargs)
 
   def merge(self, other):
-    """Merge attributes of another model into self."""
+    """Merge attributes of another model in-place."""
     assert type(self) is type(other)
     for attr in other.as_dict():
       setattr(self, attr, getattr(other, attr))
@@ -109,7 +109,7 @@ class FetchJob(Model):
     self.merge(self.client.poll_fetch_job(self.id))
 
   def download_pages(self, label_mode="id"):
-    """Lazily download pages from page_urls attribute."""
+    """Return generator of fetch job's pages as AnalyticResponse objects."""
     if self.state != 'completed' or not hasattr(self, "page_urls"):
       raise LfError('Attempted to download pages from uncompleted fetch job.')
 
@@ -152,7 +152,7 @@ class ListModel(Model):
     self._item_class = item_class
     self.records = [self._item_class(rec) for rec in self.records]
 
-  def is_last(self):
+  def is_last_page(self):
     """Determine whether there are any remaining pages."""
     return not getattr(self, "has_more_pages")
 
