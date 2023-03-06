@@ -1,4 +1,5 @@
 import types
+import os
 
 import pytest
 from lfapi.client import Client
@@ -6,7 +7,8 @@ from lfapi.errors import RecordNotFound, RequestInvalid, Unauthorized
 from lfapi.models import (AnalyticResponse, Brand, BrandSet, Dataset, FetchJob,
                           ListModel, Model, ScheduleConfig)
 
-brand_id = 6650  # ListenFirst
+brand_id = os.environ.get("BRAND_ID")
+brand_id = int(brand_id) if brand_id is not None else brand_id
 brand_set_id = 4626  # My Brands
 
 client_context = 'lfapi pytest client context'
@@ -56,6 +58,14 @@ params2 = {
   ]
 }
 
+def requires_brand_id(mth):
+  def _mth(*args, **kwargs):
+    if brand_id is None:
+      print(f'No brand_id specified; skipping {mth.__name__}')
+      return None
+    return mth(*args, **kwargs)
+  return _mth
+
 def assert_is_model(obj, model):
   assert issubclass(model, Model)
   assert isinstance(obj, model)
@@ -69,19 +79,31 @@ def assert_is_list_model(obj, item_class):
 
 class TestClient:
   def setup_method(self):
-    self.client = Client.load('./tests/config/test_profile.json')
+    profile_keys = {"API_KEY", "CLIENT_ID", "CLIENT_SECRET"}
+    opt_profile_keys = {"API_HOST", "AUTH_HOST", "ACCOUNT_ID"}
+
+    if os.environ.keys() >= profile_keys:  # Read from environment vars
+      profile_keys |= opt_profile_keys & os.environ.keys()
+      profile = {key.lower(): os.environ[key] for key in profile_keys}
+      self.client = Client.from_dict(profile)
+
+    else:  # Read from profile file
+      self.client = Client.load('./tests/config/test_profile.json')
 
   # analytics methods
   @pytest.mark.vcr
+  @requires_brand_id
   def test_fetch_works(self):
     assert_is_model(self.client.fetch(json=params1), AnalyticResponse)
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_fetch_fails_for_bad_query(self):
     with pytest.raises(RequestInvalid):
       self.client.fetch(json=params2)
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_create_and_show_fetch_job_works(self):
     job = assert_is_model(
       self.client.create_fetch_job(json={
@@ -98,6 +120,7 @@ class TestClient:
     assert_is_list_model(self.client.list_fetch_jobs(), FetchJob)
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_create_fetch_job_fails_for_bad_query(self):
     with pytest.raises(RequestInvalid):
       self.client.create_fetch_job(json={
@@ -143,6 +166,7 @@ class TestClient:
       self.client.latest_fetch_job(params={"client_context": bad_context})
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_create_and_show_schedule_config_works(self):
     config = assert_is_model(
       self.client.create_schedule_config(json={
@@ -192,6 +216,7 @@ class TestClient:
 
   # brand methods
   @pytest.mark.vcr
+  @requires_brand_id
   def test_get_brand_works(self):
     assert_is_model(self.client.get_brand(brand_id), Brand)
 
@@ -262,9 +287,20 @@ class TestClient:
 
 class TestBadClient:
   def setup_method(self):
-    self.client = Client.load('./tests/config/bad_profile.json')
+    profile_keys = {"API_KEY", "CLIENT_ID", "CLIENT_SECRET"}
+    opt_profile_keys = {"API_HOST", "AUTH_HOST", "ACCOUNT_ID"}
+
+    if os.environ.keys() >= profile_keys:  # Read from environment vars
+      profile_keys |= opt_profile_keys & os.environ.keys()
+      profile = {key.lower(): os.environ[key] for key in profile_keys}
+      profile["api_key"] = 'x' * len(profile["api_key"])
+      self.client = Client.from_dict(profile)
+
+    else:  # Read from profile file
+      self.client = Client.load('./tests/config/bad_profile.json')
 
   @pytest.mark.vcr
+  @requires_brand_id
   def test_request_fails(self):
     with pytest.raises(Unauthorized):
       self.client.fetch(json=params1)
