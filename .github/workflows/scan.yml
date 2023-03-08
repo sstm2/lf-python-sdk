@@ -2,7 +2,10 @@ name: Code Scans
 
 on:
   push:
-    branches: [master, prod]
+    branches: 
+      - master
+    tags:
+      - v*
   workflow_dispatch:
   schedule:
     - cron: "0 5 * * *"
@@ -55,7 +58,7 @@ jobs:
   release-detect:
     name: Production Intelligent Scan
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/prod'
+    if: startsWith(github.ref_name, 'v')
     steps:
       - uses: actions/checkout@v3
       - name: Set variables for scan
