@@ -5,7 +5,7 @@ on:
       - v*
 defaults:
   run:
-    working-directory: python
+    working-directory: .
 jobs:
   test:
     name: Running the Python test suite
