@@ -1,5 +1,5 @@
-import types
 import os
+import types
 
 import pytest
 from lfapi.client import Client
