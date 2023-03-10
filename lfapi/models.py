@@ -2,6 +2,7 @@ import csv
 import importlib.util
 import io
 import json
+from functools import wraps
 
 import lfapi.http_utils as http
 from lfapi.errors import LfError
@@ -16,6 +17,7 @@ class NoClientError(LfError):
   pass
 
 def requires_client(mth):
+  @wraps(mth)
   def _mth(self, *args, **kwargs):
     if self.client is None:
       raise NoClientError()
