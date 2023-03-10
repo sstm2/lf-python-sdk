@@ -2,7 +2,7 @@ name: Code Scans
 
 on:
   push:
-    branches: 
+    branches:
       - master
     tags:
       - v*
@@ -39,6 +39,15 @@ jobs:
     if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install project dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          python setup.py install
+          pip install -r requirements.txt
       - name: Run Synopsys Detect (Intelligent Mode)
         uses: synopsys-sig/detect-action@v0.3.0
         env:
@@ -48,6 +57,7 @@ jobs:
           DETECT_PROJECT_VERSION_PHRASE: DEVELOPMENT
           DETECT_PROJECT_VERSION_UPDATE: true
           DETECT_DETECTOR_SEARCH_DEPTH: 1
+          DETECT_PIP_REQUIREMENTS_PATH: requirements.txt
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.14.0
@@ -61,6 +71,15 @@ jobs:
     if: startsWith(github.ref_name, 'v')
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install project dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          python setup.py install
+          pip install -r requirements.txt
       - name: Set variables for scan
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -73,6 +92,7 @@ jobs:
           DETECT_PROJECT_VERSION_PHRASE: RELEASED
           DETECT_PROJECT_VERSION_UPDATE: true
           DETECT_DETECTOR_SEARCH_DEPTH: 1
+          DETECT_PIP_REQUIREMENTS_PATH: requirements.txt
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.14.0
