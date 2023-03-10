@@ -36,6 +36,7 @@ jobs:
           DETECT_PROJECT_VERSION_UPDATE: true
           DETECT_DETECTOR_SEARCH_DEPTH: 1
           DETECT_PIP_REQUIREMENTS_PATH: requirements.txt
+          DETECT_PROJECT_VERSION_DISTRIBUTION: OPENSOURCE
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.14.0
@@ -68,6 +69,7 @@ jobs:
           DETECT_PROJECT_VERSION_UPDATE: true
           DETECT_DETECTOR_SEARCH_DEPTH: 1
           DETECT_PIP_REQUIREMENTS_PATH: requirements.txt
+          DETECT_PROJECT_VERSION_DISTRIBUTION: OPENSOURCE
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.14.0
@@ -103,6 +105,7 @@ jobs:
           DETECT_PROJECT_VERSION_UPDATE: true
           DETECT_DETECTOR_SEARCH_DEPTH: 1
           DETECT_PIP_REQUIREMENTS_PATH: requirements.txt
+          DETECT_PROJECT_VERSION_DISTRIBUTION: OPENSOURCE
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           detect-version: 7.14.0
