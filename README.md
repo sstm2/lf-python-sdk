@@ -12,21 +12,53 @@ The latest version of the library can be installed directly from PyPI:
 Usage
 -----
 
-The Client class is the main interface with the ListenFirst API:
+### Getting Started
+
+The `lfapi.Client` class is the main interface with the ListenFirst API:
 
     from lfapi import Client
 
-It requires at minimum a set of client credentials as well as an API key, which
-can be loaded from a JSON file:
+It requires at minimum an API key as well as a set of client credentials for
+access token generation. Token generation is handled by the `lfapi.Auth` class:
+
+    from lfapi import Auth
+    auth = Auth(<CLIENT_ID>, <CLIENT_SECRET>)
+    token = auth.access_token
+
+The `Client` class is instantiated with an API key and an instance of the
+`Auth` class:
+
+    c = Client(<API_KEY>, auth)
+
+Alternatively, all three credentials can be loaded directly to the `Client`
+class from a JSON file:
 
     c = Client.load(<JSON_FILE_NAME_OR_FILE_OBJECT>)
+
+    # The JSON file should follow this schema:
+    # {
+    #   "api_key": <api_key>,
+    #   "client_id": <client_id>
+    #   "client_secret": <client_secret>
+    # }
 
 These credentials can be retrieved from [the platform's API settings page](
 https://app.listenfirstmedia.com/#api).
 
-Once instantiated, the `Client` object can be used to make customized HTTP requests to various API endpoints:
+### Accessing the API
 
-    res = c.secure_get('dictionary/datasets')
+Once instantiated, the `Client` object can be used to make customized HTTP
+requests to various API endpoints. The lowest-level request mechanism is built
+around two methods, `secure_get()` and `secure_post()`. Each takes a positional
+endpoint argument, as well as a `params` argument as in the `requests` library.
+`secure_post()` additionally takes a `json` argument, again mirroring the
+`requests` library. Both return `requests.Response` objects upon successful
+completion:
+* `client.secure_get(endpoint, params=None)`  
+    Make a secure `GET` request to the ListenFirst API.
+
+* `client.secure_post(endpoint, json=None, params=None)`  
+    Make a secure `POST` request to the ListenFirst API.
 
 Commonly used endpoints have dedicated instance methods:
 * `client.fetch(json)`  
