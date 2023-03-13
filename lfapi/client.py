@@ -1,4 +1,5 @@
 import json
+from functools import wraps
 from math import inf
 from urllib.parse import urljoin
 
@@ -14,6 +15,7 @@ def as_model(model, listed=False):
     raise LfError('@as_model decorator takes a subclass of lfapi.Model')
 
   def as_model_decorator(mth):
+    @wraps(mth)
     def _mth(self, *args, **kwargs):
       res = mth(self, *args, **kwargs)
       body = res.json()
