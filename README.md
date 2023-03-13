@@ -116,9 +116,9 @@ Commonly used endpoints have dedicated instance methods:
     `GET` request to `/dictionary/field_values` to view a list of values for a
     given field.
 
-These methods wrap the API responses in instances of `lfapi.Model` subclasses.
-These wrapper classes offer some convenient extended functionality, such as
-JSON and CSV conversion.
+With the exception of `get_field_values()`, these methods wrap the API
+responses in instances of `lfapi.Model` subclasses. These wrapper classes offer
+some convenient extended functionality, such as JSON and CSV conversion.
 
 In addition, the `Client` object implements a number of convenience methods
 around the `/analytics` endpoints for managing data queries:
