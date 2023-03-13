@@ -10,6 +10,7 @@ jobs:
   test:
     name: Running the Python test suite
     uses: ./.github/workflows/ci.yml
+    secrets: inherit
 
   upload-test-pypi:
     name: Uploading to PyPI

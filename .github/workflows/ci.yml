@@ -4,6 +4,15 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_call:
+    secrets:
+      DEV_API_KEY:
+        required: true
+      DEV_CLIENT_ID:
+        required: true
+      DEV_CLIENT_SECRET:
+        required: true
+
 defaults:
   run:
     working-directory: .
