@@ -159,8 +159,12 @@ class ListModel(Model):
     return not getattr(self, "has_more_pages")
 
   def as_list(self):
-    """Return the model as a list."""
+    """Return the model as a list of models."""
     return self.records
+
+  def as_dict_list(self):
+    """Return the model as a list of dictionaries."""
+    return [rec.as_dict() for rec in self.records]
 
   def to_csv(self, fp=None, delimiter=','):
     """Send the model to a CSV file or string object.
@@ -180,7 +184,7 @@ class ListModel(Model):
         return self.to_csv(fp, delimiter=delimiter)
 
     # Write to fp
-    rows = self.as_list()
+    rows = self.as_dict_list()
     writer = csv.DictWriter(fp, delimiter=delimiter, fieldnames=rows[0].keys())
     writer.writeheader()
     writer.writerows(rows)
@@ -194,7 +198,7 @@ class ListModel(Model):
     if pd is None:
       raise NotImplementedError('pandas is not installed.')
 
-    rows = self.as_list()
+    rows = self.as_dict_list()
     return pd.DataFrame(
       columns=rows[0].keys(),
       data=rows
@@ -208,7 +212,7 @@ class ListModel(Model):
     return len(self) > 0
 
   def __iter__(self):
-    yield from self.as_list()
+    yield from self.records
 
   def __add__(self, other):
     if not isinstance(other, ListModel):
@@ -220,7 +224,7 @@ class ListModel(Model):
 
     all_records = self.records + other.records
     body = {
-      "records": [record.to_dict() for record in all_records]
+      "records": [record.as_dict() for record in all_records]
     }
     return ListModel(body, self._item_class)
 
@@ -237,8 +241,12 @@ class AnalyticResponse(ListModel):
     self.label_mode = label_mode
 
   def as_list(self):
-    """Return the model as a list."""
+    """Return the model as a list. Items are dictionaries instead of models."""
     return [dict(zip(self._labels, row)) for row in self.records]
+
+  def as_dict_list(self):
+    """Alias of as_list()."""
+    return self.as_list()
 
   def __add__(self, other):
     if not isinstance(other, AnalyticResponse):
