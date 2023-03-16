@@ -28,12 +28,12 @@ access token generation. Token generation is handled by the `lfapi.Auth` class:
 The `Client` class is instantiated with an API key and an instance of the
 `Auth` class:
 
-    c = Client(<API_KEY>, auth)
+    client = Client(<API_KEY>, auth)
 
 Alternatively, all three credentials can be loaded directly to the `Client`
 class from a JSON file:
 
-    c = Client.load(<JSON_FILE_NAME_OR_FILE_OBJECT>)
+    client = Client.load(<JSON_FILE_NAME_OR_FILE_OBJECT>)
 
     # The JSON file should follow this schema:
     # {
