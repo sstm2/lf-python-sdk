@@ -94,6 +94,10 @@ class Model:
   def record(self):
     return self.body.get("record")
 
+  @property
+  def attrs(self):
+    return sorted(self.as_dict().keys())
+
 
 class FetchJob(Model):
   """Wrapper for ListenFirst API Fetch Jobs."""
@@ -166,6 +170,11 @@ class ListModel(Model):
     """Return the model as a list of dictionaries."""
     return [rec.as_dict() for rec in self.records]
 
+  @property
+  def _labels(self):
+    base_labels = set(self._item_class._required)
+    return sorted(base_labels.union(*[rec.attrs for rec in self.records]))
+
   def to_csv(self, fp=None, delimiter=','):
     """Send the model to a CSV file or string object.
 
@@ -185,7 +194,7 @@ class ListModel(Model):
 
     # Write to fp
     rows = self.as_dict_list()
-    writer = csv.DictWriter(fp, delimiter=delimiter, fieldnames=rows[0].keys())
+    writer = csv.DictWriter(fp, delimiter=delimiter, fieldnames=self._labels)
     writer.writeheader()
     writer.writerows(rows)
 
@@ -196,11 +205,11 @@ class ListModel(Model):
     not installed.
     """
     if pd is None:
-      raise NotImplementedError('pandas is not installed.')
+      raise NotImplementedError('Pandas is not installed.')
 
     rows = self.as_dict_list()
     return pd.DataFrame(
-      columns=rows[0].keys(),
+      columns=self._labels,
       data=rows
     )
 
