@@ -94,6 +94,10 @@ class Model:
   def record(self):
     return self.body.get("record")
 
+  @property
+  def attrs(self):
+    return sorted(self.as_dict().keys())
+
 
 class FetchJob(Model):
   """Wrapper for ListenFirst API Fetch Jobs."""
@@ -168,7 +172,8 @@ class ListModel(Model):
 
   @property
   def _labels(self):
-    return self.item_class._required
+    base_labels = set(self._item_class._required)
+    return sorted(base_labels.union(*[rec.attrs for rec in self.records]))
 
   def to_csv(self, fp=None, delimiter=','):
     """Send the model to a CSV file or string object.
