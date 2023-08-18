@@ -21,13 +21,13 @@ setup(
   long_description=long_description,
   long_description_content_type='text/markdown',
   install_requires=[
-    'requests'
+    'requests>=2.31.0'
   ],
   setup_requires=[
-    'pytest_runner'
+    'pytest_runner==6.0.0'
   ],
   tests_require=[
-    'pytest'
+    'pytest==7.2.1'
   ],
   test_suite='tests',
   python_requires='>=3.8, <4',
