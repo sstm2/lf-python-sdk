@@ -1,3 +1,4 @@
+import json
 import os
 import types
 
@@ -226,7 +227,14 @@ class TestClient:
 
   @pytest.mark.vcr
   def test_get_brand_fails_for_bad_id(self):
-    brands = assert_is_list_model(self.client.list_brands(), Brand)
+    brands = assert_is_list_model(self.client.list_brands(params={
+      "sort": json.dumps([
+        {
+          "field": "lfm.brand_view.id",
+          "dir": "ASC"
+        }
+      ])
+    }), Brand)
 
     bad_id = min([brand.id for brand in brands]) - 1
     with pytest.raises(RecordNotFound):
