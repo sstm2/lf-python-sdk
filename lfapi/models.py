@@ -1,17 +1,15 @@
 import csv
-import importlib.util
 import io
 import json
 from functools import wraps
 
 import lfapi.http_utils as http
+from lfapi.dep_utils import depends_on, safe_import
 from lfapi.errors import LfError
 
-if importlib.util.find_spec('pandas') is None:
-  pd = None
-else:
-  import pandas as pd
-
+pd = safe_import('pandas')
+pa = safe_import('pyarrow')
+pq = safe_import('pyarrow.parquet')
 
 class NoClientError(LfError):
   pass
@@ -180,7 +178,7 @@ class ListModel(Model):
 
     Arguments:
     fp
-      the file object or filename; if None, this method returns a string
+      the filename or file object; if None, this method returns a string
       containing the data in CSV format
     """
     # Set fp to string IO if not specified
@@ -200,18 +198,37 @@ class ListModel(Model):
 
     return fp.getvalue() if isinstance(fp, io.StringIO) else None
 
+  @depends_on('pandas')
   def to_pandas(self):
     """Convert the model to a Pandas DataFrame. Not implemented if Pandas is
     not installed.
     """
-    if pd is None:
-      raise NotImplementedError('Pandas is not installed.')
-
     rows = self.as_dict_list()
     return pd.DataFrame(
       columns=self._labels,
       data=rows
     )
+
+  @depends_on('pyarrow')
+  def to_pyarrow(self):
+    """Convert the model to a PyArrow Table. Not implemented if PyArrow is not
+    installed.
+    """
+    rows = self.as_dict_list()
+    return pa.Table.from_pylist(rows)
+
+  @depends_on('pyarrow.parquet')
+  def to_parquet(self, where, **pq_kwargs):
+    """Send the model to a Parquet file.
+
+    Arguments:
+    where
+      the filename or pyarrow.NativeFile instance
+    **pq_kwargs
+      accepts any keyword arguments supported by pq.write_table()
+    """
+    table = self.to_pyarrow()
+    pq.write_table(table, where, **pq_kwargs)
 
   # List-like dunder methods
   def __len__(self):
