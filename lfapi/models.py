@@ -218,7 +218,7 @@ class ListModel(Model):
     return pa.Table.from_pylist(rows)
 
   @depends_on('pyarrow.parquet')
-  def to_parquet(self, where, **pq_kwargs):
+  def write_parquet(self, where, **pq_kwargs):
     """Send the model to a Parquet file.
 
     Arguments:
