@@ -287,7 +287,7 @@ class AnalyticResponse(ListModel):
       "columns": self.columns,
       "records": self.records + other.records
     }
-    return AnalyticResponse(body, self._item_class)
+    return AnalyticResponse(body)
 
   @property
   def _labels(self):
