@@ -10,11 +10,10 @@ long_description = (Path(__file__).parent / "README.md").read_text()
 
 setup(
     name="lfapi",
-    version=version_metadata["__version__"],
+    version=version_metadata["__version__"] + "+s2",
     author="Joseph Masom",
     author_email="joseph.masom@listenfirstmedia.com",
-    url="https://github.com/ListenFirstMedia/lf-python-sdk",
-    download_url="https://pypi.org/project/lfapi",
+    url="https://github.com/sstm2/lf-python-sdk.git",
     license="MIT",
     packages=find_packages(include=["lfapi"]),
     description="The Python library for the ListenFirst API",
